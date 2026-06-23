@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>brat visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000000; /* ✅ Black website background */
+            font-family: 'Arial Narrow', 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #eee;
+            user-select: none;
+        }
+
+        .app {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            padding: 20px;
+            width: 100%;
+            max-width: 700px;
+        }
+
+        .drop-row {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .drop-zone {
+            flex: 1 1 200px;
+            min-width: 140px;
+            padding: 12px 16px;
+            border: 2px dashed #555;
+            border-radius: 8px;
+            background: #1a1a1a;
+            text-align: center;
+            font-size: 14px;
+            color: #aaa;
+            transition: border-color 0.2s, background 0.2s;
+            cursor: pointer;
+            position: relative;
+        }
+        .drop-zone.dragover {
+            border-color: #fff;
+            background: #222;
+        }
+        .drop-zone.has-file {
+            border-color: #fff;
+            border-style: solid;
+            background: #2a2a2a;
+        }
+        .drop-zone .file-name {
+            font-size: 12px;
+            color: #fff;
+            font-weight: 600;
+            margin-top: 4px;
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .drop-zone .hint {
+            font-size: 12px;
+            color: #888;
+        }
+        .drop-zone input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .brat-box-wrap {
+            width: 100%;
+            max-width: 550px;
+            aspect-ratio: 1 / 1;
+            background: #ffffff; /* ✅ Default white box inside */
+            position: relative;
+            border: 1px solid #444;
+            box-shadow: 0 8px 30px rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 25px;
+            transition: none !important;
+            overflow: hidden;
+        }
+        .brat-box-wrap.has-content {
+            border-color: #888;
+        }
+        /* 🎤 Duet/Alternate Vocal Mode Inversion */
+        .brat-box-wrap.duet-mode {
+            background: #000000 !important;
+        }
+        .brat-box-wrap.duet-mode #textDisplay {
+            color: #ffffff !important;
+        }
+
+        #textDisplay {
+            width: 100%; 
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Arial Narrow', 'Arial', sans-serif;
+            font-weight: 500;
+            color: #000000;
+            filter: blur(2px);
+            text-align: justify;
+            text-align-last: justify;
+            line-height: 1.2;
+            padding: 0px;
+            box-sizing: border-box;
+            word-break: keep-all;
+            overflow: visible; 
+            transition: none !important;
+        }
+
+        #bgvDisplay {
+            position: absolute;
+            top: 25px;
+            left: 0; 
+            width: 100%;
+            height: calc(100% - 50px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Arial Narrow', 'Arial', sans-serif;
+            font-weight: 500;
+            filter: blur(2px);
+            text-align: justify;
+            text-align-last: justify;
+            line-height: 1.2;
+            padding: 0px;
+            box-sizing: border-box;
+            word-break: keep-all;
+            overflow: visible; 
+            pointer-events: none;
+            z-index: 10;
+            transition: none !important;
+            
+            /* 🎶 BGV Overlay - Invert effect */
+            color: white;
+            mix-blend-mode: difference;
+        }
+        .brat-box-wrap.duet-mode #bgvDisplay {
+            color: white;
+        }
+
+        #textDisplay .line-wrap, #bgvDisplay .line-wrap {
+            display: block;
+            width: 100%;
+            transform: scaleX(0.90) scaleY(1.05);
+            transform-origin: center center;
+            letter-spacing: -0.5px;
+            padding: 0;
+        }
+
+        .controls {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .ctrl-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .ctrl-row button {
+            background: #fff;
+            color: #000;
+            border: none;
+            border-radius: 30px;
+            padding: 10px 24px;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: 'Arial Narrow', 'Arial', sans-serif;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            min-width: 80px;
+            letter-spacing: 0.5px;
+        }
+        .ctrl-row button:hover {
+            background: #ddd;
+        }
+        .ctrl-row button:active {
+            transform: scale(0.96);
+        }
+        .ctrl-row button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            background: #555;
+        }
+
+        .ctrl-row .time-display {
+            font-size: 14px;
+            font-family: 'Arial Narrow', 'Arial', sans-serif;
+            color: #aaa;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        input[type="range"]#progressBar {
+            flex: 1;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            border-radius: 4px;
+            background: #555;
+            cursor: pointer;
+            outline: none;
+            transition: height 0.15s;
+        }
+        input[type="range"]#progressBar::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            border: 2px solid #000;
+            box-shadow: 0 0 0 1px #fff;
+        }
+        input[type="range"]#progressBar::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+        input[type="range"]#progressBar::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            border: 2px solid #000;
+            box-shadow: 0 0 0 1px #fff;
+        }
+        input[type="range"]#progressBar::-webkit-slider-runnable-track {
+            height: 6px;
+            border-radius: 4px;
+            background: #555;
+        }
+        input[type="range"]#progressBar::-moz-range-track {
+            height: 6px;
+            border-radius: 4px;
+            background: #555;
+        }
+        input[type="range"]#progressBar:hover {
+            height: 10px;
+        }
+
+        .status-msg {
+            font-size: 14px;
+            color: #888;
+            font-family: 'Arial Narrow', 'Arial', sans-serif;
+            text-align: center;
+            min-height: 20px;
+            padding: 4px 0;
+        }
+
+        /* ⚙️ SETTINGS PANEL */
+        .settings-toggle {
+            background: transparent;
+            color: #aaa;
+            border: 1px solid #444;
+            border-radius: 20px;
+            padding: 6px 16px;
+            font-size: 13px;
+            font-family: 'Arial Narrow', 'Arial', sans-serif;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .settings-toggle:hover {
+            border-color: #fff;
+            color: #fff;
+        }
+
+        .settings-panel {
+            width: 100%;
+            max-width: 500px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+            transition: all 0.2s;
+        }
+        .settings-panel.open {
+            display: flex;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+        .setting-row label {
+            font-size: 14px;
+            color: #ccc;
+            font-family: 'Arial Narrow', 'Arial', sans-serif;
+            min-width: 80px;
+        }
+        .setting-row select, .setting-row input {
+            flex: 1;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-family: 'Arial Narrow', 'Arial', sans-serif;
+            font-size: 14px;
+            outline: none;
+        }
+        .setting-row select option {
+            background: #1a1a1a;
+        }
+        .setting-row input[type="range"] {
+            padding: 0;
+            accent-color: #fff;
+            height: 4px;
+        }
+
+        @media (max-width: 520px) {
+            .brat-box-wrap {
+                max-width: 100%;
+                padding: 15px;
+            }
+            #textDisplay, #bgvDisplay {
+                width: 100%; 
+            }
+            .drop-zone {
+                flex: 1 1 100%;
+                min-width: 0;
+            }
+            .ctrl-row button {
+                padding: 8px 16px;
+                font-size: 13px;
+                min-width: 60px;
+            }
+            .ctrl-row .time-display {
+                font-size: 12px;
+                min-width: 60px;
+            }
+            #textDisplay, #bgvDisplay {
+                filter: blur(1.5px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="drop-row">
+            <div class="drop-zone" id="ttmlDrop">
+                <span class="hint">⬇ TTML</span>
+                <span class="file-name" id="ttmlName">—</span>
+                <input type="file" accept=".ttml,.xml" id="ttmlInput" />
+            </div>
+            <div class="drop-zone" id="audioDrop">
+                <span class="hint">⬇ AUDIO</span>
+                <span class="file-name" id="audioName">—</span>
+                <input type="file" accept="audio/*" id="audioInput" />
+            </div>
+        </div>
+
+        <div class="brat-box-wrap" id="bratBox">
+            <div id="textDisplay"></div>
+            <div id="bgvDisplay"></div>
+        </div>
+
+        <div class="controls">
+            <div class="ctrl-row">
+                <button id="playBtn">▶ Play</button>
+                <input type="range" id="progressBar" min="0" max="1000" value="0" step="0.1" />
+                <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
+                <button class="settings-toggle" id="settingsToggle">⚙ Settings</button>
+            </div>
+            <div class="settings-panel" id="settingsPanel">
+                <div class="setting-row">
+                    <label>Font Scale</label>
+                    <input type="range" id="fontScale" min="0.5" max="1.5" step="0.05" value="1.0">
+                    <span id="fontScaleValue" style="min-width:30px; text-align:center; color:#fff;">1.0x</span>
+                </div>
+                <div class="setting-row">
+                    <label>Text Align</label>
+                    <select id="textAlign">
+                        <option value="justify">Justify</option>
+                        <option value="left">Left</option>
+                        <option value="center">Center</option>
+                        <option value="right">Right</option>
+                    </select>
+                </div>
+            </div>
+            <div class="status-msg" id="statusMsg">drop TTML + audio to start</div>
+        </div>
+    </div>
+
+    <script>
+        // --------------------------------------------------------------
+        //  STATE & SETTINGS
+        // --------------------------------------------------------------
+        const state = {
+            lines: [],          // each line: { agent, words: [main words], bgvWords: [bgv words] }
+            audio: null,
+            isPlaying: false,
+            currentTime: 0,
+            duration: 0,
+            animationId: null,
+            loaded: false,
+            settings: {
+                fontScale: 1.0,
+                textAlign: 'justify'
+            }
+        };
+
+        const textDisplay = document.getElementById('textDisplay');
+        const bgvDisplay = document.getElementById('bgvDisplay');
+        const playBtn = document.getElementById('playBtn');
+        const progressBar = document.getElementById('progressBar');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const statusMsg = document.getElementById('statusMsg');
+        const bratBox = document.getElementById('bratBox');
+        const ttmlDrop = document.getElementById('ttmlDrop');
+        const audioDrop = document.getElementById('audioDrop');
+        const ttmlInput = document.getElementById('ttmlInput');
+        const audioInput = document.getElementById('audioInput');
+        const settingsToggle = document.getElementById('settingsToggle');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const fontScaleInput = document.getElementById('fontScale');
+        const fontScaleValue = document.getElementById('fontScaleValue');
+        const textAlignSelect = document.getElementById('textAlign');
+
+        // --------------------------------------------------------------
+        //  SETTINGS HANDLERS
+        // --------------------------------------------------------------
+        settingsToggle.addEventListener('click', () => {
+            settingsPanel.classList.toggle('open');
+        });
+
+        fontScaleInput.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            state.settings.fontScale = val;
+            fontScaleValue.textContent = val.toFixed(2) + 'x';
+            if(state.lines.length && state.audio) {
+                renderLyrics(state.currentTime);
+            }
+        });
+
+        textAlignSelect.addEventListener('change', (e) => {
+            state.settings.textAlign = e.target.value;
+            textDisplay.style.textAlign = state.settings.textAlign;
+            textDisplay.style.textAlignLast = state.settings.textAlign;
+            bgvDisplay.style.textAlign = state.settings.textAlign;
+            bgvDisplay.style.textAlignLast = state.settings.textAlign;
+        });
+
+        // --------------------------------------------------------------
+        //  TTML PARSER
+        // --------------------------------------------------------------
+        function parseTime(str) {
+            if (!str) return null;
+            str = str.trim();
+            if (/^\d+(\.\d+)?$/.test(str)) return parseFloat(str);
+            const parts = str.split(':');
+            if (parts.length === 3) {
+                return (parseFloat(parts[0]) || 0) * 3600 +
+                       (parseFloat(parts[1]) || 0) * 60 +
+                       (parseFloat(parts[2]) || 0);
+            } else if (parts.length === 2) {
+                return (parseFloat(parts[0]) || 0) * 60 + (parseFloat(parts[1]) || 0);
+            }
+            return parseFloat(str) || 0;
+        }
+
+        function parseTTML(xmlStr) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(xmlStr, 'text/xml');
+            const pEls = doc.querySelectorAll('p');
+            if (!pEls.length) throw new Error('No <p> elements found in TTML.');
+
+            const lines = [];
+            for (const p of pEls) {
+                const agent = p.getAttribute('ttm:agent') || p.getAttribute('agent') || null;
+                const childNodes = p.childNodes;
+                const words = [];
+                const bgvWords = [];
+                let spaceCount = 0; 
+
+                for (let i = 0; i < childNodes.length; i++) {
+                    const node = childNodes[i];
+
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        const text = node.textContent;
+                        if (text.trim() === '' && text.includes(' ')) {
+                            spaceCount = text.replace(/\n/g, '').length; 
+                        }
+                    } else if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'span') {
+                        const role = node.getAttribute('ttm:role') || node.getAttribute('role');
+
+                        if (role === 'x-bg') {
+                            // ✅ BGV FIX: Properly parse childNodes to get spaces between spans
+                            let bgvSpaceCount = spaceCount;
+                            spaceCount = 0; // Reset outer space count so it doesn't leak
+                            
+                            for (const bgvChild of node.childNodes) {
+                                if (bgvChild.nodeType === Node.TEXT_NODE) {
+                                    const text = bgvChild.textContent;
+                                    if (text.trim() === '' && text.includes(' ')) {
+                                        bgvSpaceCount = text.replace(/\n/g, '').length;
+                                    }
+                                } else if (bgvChild.nodeType === Node.ELEMENT_NODE && bgvChild.tagName === 'span') {
+                                    let rawText = bgvChild.textContent;
+                                    rawText = rawText.replace(/[\(\)\[\]]/g, '');
+                                    const begin = bgvChild.getAttribute('begin') || '';
+                                    const end = bgvChild.getAttribute('end') || '';
+                                    const start = parseTime(begin);
+                                    const endTime = parseTime(end);
+                                    if (start === null || endTime === null) continue;
+
+                                    let finalText = rawText;
+                                    if (bgvSpaceCount > 0) {
+                                        finalText = ' '.repeat(bgvSpaceCount) + rawText;
+                                        bgvSpaceCount = 0; 
+                                    }
+                                    bgvWords.push({ rawText: finalText, start, end: endTime });
+                                }
+                            }
+                        } else {
+                            const rawText = node.textContent;
+                            const begin = node.getAttribute('begin') || '';
+                            const end = node.getAttribute('end') || '';
+                            const start = parseTime(begin);
+                            const endTime = parseTime(end);
+                            if (start === null || endTime === null) continue;
+
+                            let finalText = rawText;
+                            if (spaceCount > 0) {
+                                finalText = ' '.repeat(spaceCount) + rawText;
+                                spaceCount = 0; 
+                            }
+                            words.push({ rawText: finalText, start, end: endTime });
+                        }
+                    }
+                }
+
+                if (words.length || bgvWords.length) {
+                    lines.push({ agent, words, bgvWords });
+                }
+            }
+
+            if (!lines.length) throw new Error('No words parsed from TTML.');
+            return lines;
+        }
+
+        // --------------------------------------------------------------
+        //  TEXT FITTING – HARDLOCKED TO 460px + SETTINGS SCALE
+        // --------------------------------------------------------------
+        function fitText(container, textContent) {
+            const TARGET_WIDTH = 460; 
+            const TARGET_HEIGHT = 460;
+            if (TARGET_WIDTH <= 0 || TARGET_HEIGHT <= 0) return 16;
+
+            container.innerHTML = textContent;
+
+            let low = 8, high = 340, best = 16;
+
+            const clone = container.cloneNode(true);
+            clone.style.position = 'absolute';
+            clone.style.visibility = 'hidden';
+            clone.style.width = TARGET_WIDTH + 'px';
+            clone.style.height = TARGET_HEIGHT + 'px';
+            clone.style.padding = '0px';
+            clone.style.boxSizing = 'border-box';
+            clone.style.overflow = 'hidden';
+            clone.style.filter = 'none';
+            clone.style.transition = 'none';
+            clone.style.textAlign = 'left';
+            clone.style.textAlignLast = 'auto';
+            clone.style.transform = 'none';
+            clone.style.letterSpacing = '0px';
+            document.body.appendChild(clone);
+
+            const measure = (size) => {
+                clone.style.fontSize = size + 'px';
+                const child = clone.firstElementChild;
+                if (child) {
+                    child.style.display = 'inline-block';
+                    child.style.width = 'auto';
+                    child.style.maxWidth = 'none';
+                    child.style.whiteSpace = 'normal';
+                }
+                const rect = clone.getBoundingClientRect();
+                const padX = parseFloat(getComputedStyle(clone).paddingLeft) +
+                            parseFloat(getComputedStyle(clone).paddingRight);
+                const padY = parseFloat(getComputedStyle(clone).paddingTop) +
+                            parseFloat(getComputedStyle(clone).paddingBottom);
+                const availW = rect.width - padX;
+                const availH = rect.height - padY;
+                const contentRect = child ? child.getBoundingClientRect() : rect;
+                return { w: contentRect.width, h: contentRect.height, availW, availH };
+            };
+
+            for (let iter = 0; iter < 40; iter++) {
+                const mid = (low + high) >> 1;
+                const m = measure(mid);
+                if (m.w <= m.availW - 4 && m.h <= m.availH - 4) {
+                    best = mid;
+                    low = mid + 1;
+                } else {
+                    high = mid - 1;
+                }
+                if (low > high) break;
+            }
+
+            document.body.removeChild(clone);
+            
+            // ✅ APPLY GLOBAL FONT SCALE FROM SETTINGS
+            const finalSize = best * state.settings.fontScale;
+            container.style.fontSize = finalSize + 'px';
+            return finalSize;
+        }
+
+        // --------------------------------------------------------------
+        //  RENDER
+        // --------------------------------------------------------------
+        function renderLyrics(time) {
+            const lines = state.lines;
+            if (!lines.length) {
+                textDisplay.innerHTML = '';
+                bgvDisplay.innerHTML = '';
+                bratBox.classList.remove('duet-mode'); 
+                return;
+            }
+
+            let currentLineIdx = -1;
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].words.length && lines[i].words[0].start <= time + 0.001) {
+                    currentLineIdx = i;
+                } else {
+                    break;
+                }
+            }
+
+            if (currentLineIdx === -1) {
+                textDisplay.innerHTML = '';
+                bratBox.classList.remove('duet-mode');
+            } else {
+                const line = lines[currentLineIdx];
+                if (line.agent && line.agent.includes('v2')) {
+                    bratBox.classList.add('duet-mode');
+                } else {
+                    bratBox.classList.remove('duet-mode');
+                }
+
+                // --- 1. MAIN VOCALS ---
+                const visibleWords = [];
+                for (const w of line.words) {
+                    if (w.start <= time + 0.001) {
+                        visibleWords.push(w.rawText);
+                    } else {
+                        break;
+                    }
+                }
+
+                if (visibleWords.length) {
+                    const lineText = visibleWords.join('');
+                    const escaped = lineText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    const html = `<span class="line-wrap">${escaped}</span>`;
+                    textDisplay.innerHTML = html;
+                    fitText(textDisplay, html);
+                } else {
+                    textDisplay.innerHTML = '';
+                }
+            }
+
+            // --- 2. BACKGROUND VOCALS (Fixed Independency + Build-up + SPACES!) ---
+            let currentBgvLineIdx = -1;
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].bgvWords.length && lines[i].bgvWords[0].start <= time + 0.001) {
+                    currentBgvLineIdx = i;
+                }
+            }
+
+            if (currentBgvLineIdx !== -1) {
+                const bgvLine = lines[currentBgvLineIdx];
+                const lastWord = bgvLine.bgvWords[bgvLine.bgvWords.length - 1];
+
+                if (time <= lastWord.end) {
+                    const visibleBgvWords = [];
+                    for (const w of bgvLine.bgvWords) {
+                        if (w.start <= time + 0.001) {
+                            visibleBgvWords.push(w.rawText);
+                        } else {
+                            break;
+                        }
+                    }
+
+                    if (visibleBgvWords.length) {
+                        const bgvText = visibleBgvWords.join('');
+                        const escapedBgv = bgvText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        const htmlBgv = `<span class="line-wrap">${escapedBgv}</span>`;
+                        bgvDisplay.innerHTML = htmlBgv;
+                        fitText(bgvDisplay, htmlBgv);
+                    } else {
+                        bgvDisplay.innerHTML = '';
+                    }
+                } else {
+                    bgvDisplay.innerHTML = '';
+                }
+            } else {
+                bgvDisplay.innerHTML = '';
+            }
+        }
+
+        // --------------------------------------------------------------
+        //  SYNC LOOP
+        // --------------------------------------------------------------
+        function syncLoop() {
+            if (!state.audio || !state.loaded) {
+                state.animationId = null;
+                return;
+            }
+
+            const audio = state.audio;
+            const t = audio.currentTime;
+            state.currentTime = t;
+
+            if (state.duration > 0) {
+                progressBar.value = (t / state.duration) * 1000;
+            }
+            timeDisplay.textContent = formatTime(t) + ' / ' + formatTime(state.duration);
+
+            renderLyrics(t);
+
+            if (state.isPlaying && !audio.paused) {
+                state.animationId = requestAnimationFrame(syncLoop);
+            } else {
+                if (audio.paused && state.isPlaying) {
+                    state.isPlaying = false;
+                    playBtn.textContent = '▶ Play';
+                }
+                if (audio.ended) {
+                    state.isPlaying = false;
+                    playBtn.textContent = '▶ Play';
+                    progressBar.value = 1000;
+                    renderLyrics(state.duration);
+                }
+                state.animationId = null;
+            }
+        }
+
+        function startSync() {
+            if (state.animationId) cancelAnimationFrame(state.animationId);
+            state.animationId = requestAnimationFrame(syncLoop);
+        }
+
+        // --------------------------------------------------------------
+        //  CONTROLS
+        // --------------------------------------------------------------
+        playBtn.addEventListener('click', () => {
+            if (!state.audio || !state.loaded) {
+                statusMsg.textContent = '⏳ load TTML + audio first';
+                return;
+            }
+            if (state.isPlaying) {
+                state.audio.pause();
+                state.isPlaying = false;
+                playBtn.textContent = '▶ Play';
+                if (state.animationId) cancelAnimationFrame(state.animationId);
+                state.animationId = null;
+                statusMsg.textContent = '⏸ paused';
+            } else {
+                if (state.audio.ended) state.audio.currentTime = 0;
+                state.audio.play().then(() => {
+                    state.isPlaying = true;
+                    playBtn.textContent = '⏸ Pause';
+                    statusMsg.textContent = '▶ playing';
+                    startSync();
+                }).catch(e => {
+                    statusMsg.textContent = '⚠️ ' + e.message;
+                });
+            }
+        });
+
+        progressBar.addEventListener('input', (e) => {
+            if (!state.audio || !state.loaded) return;
+            const val = parseFloat(e.target.value) / 1000;
+            const t = val * state.duration;
+            state.audio.currentTime = t;
+            state.currentTime = t;
+            timeDisplay.textContent = formatTime(t) + ' / ' + formatTime(state.duration);
+            renderLyrics(t);
+        });
+
+        progressBar.addEventListener('change', (e) => {
+            if (!state.audio || !state.loaded) return;
+            const val = parseFloat(e.target.value) / 1000;
+            const t = val * state.duration;
+            state.audio.currentTime = t;
+            state.currentTime = t;
+            renderLyrics(t);
+        });
+
+        // --------------------------------------------------------------
+        //  FILE HANDLING
+        // --------------------------------------------------------------
+        function handleTTMLFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const lines = parseTTML(e.target.result);
+                    state.lines = lines;
+                    document.getElementById('ttmlName').textContent = file.name;
+                    ttmlDrop.classList.add('has-file');
+                    statusMsg.textContent = '✅ TTML loaded: ' + file.name;
+                    checkReady();
+                } catch (err) {
+                    statusMsg.textContent = '❌ TTML error: ' + err.message;
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function handleAudioFile(file) {
+            const url = URL.createObjectURL(file);
+            const audio = new Audio(url);
+            state.audio = audio;
+
+            audio.addEventListener('loadedmetadata', () => {
+                state.duration = audio.duration;
+                state.loaded = true;
+                timeDisplay.textContent = '0:00 / ' + formatTime(audio.duration);
+                progressBar.value = 0;
+                document.getElementById('audioName').textContent = file.name;
+                audioDrop.classList.add('has-file');
+                statusMsg.textContent = '✅ audio loaded: ' + file.name;
+                checkReady();
+                renderLyrics(0);
+            });
+
+            audio.addEventListener('ended', () => {
+                state.isPlaying = false;
+                playBtn.textContent = '▶ Play';
+                if (state.animationId) cancelAnimationFrame(state.animationId);
+                progressBar.value = 1000;
+                renderLyrics(state.duration);
+                statusMsg.textContent = '⏹ finished';
+            });
+
+            audio.load();
+        }
+
+        function checkReady() {
+            if (state.lines.length && state.audio && state.loaded) {
+                statusMsg.textContent = '✅ ready — press Play';
+                playBtn.disabled = false;
+                bratBox.classList.add('has-content');
+                renderLyrics(0);
+            } else {
+                playBtn.disabled = true;
+            }
+        }
+
+        function setupDropZone(zone, input, handler) {
+            zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
+            zone.addEventListener('dragleave', () => { zone.classList.remove('dragover'); });
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('dragover');
+                if (e.dataTransfer.files.length) handler(e.dataTransfer.files[0]);
+            });
+            input.addEventListener('change', (e) => {
+                if (input.files.length) handler(input.files[0]);
+            });
+        }
+
+        setupDropZone(ttmlDrop, ttmlInput, handleTTMLFile);
+        setupDropZone(audioDrop, audioInput, handleAudioFile);
+
+        [ttmlDrop, audioDrop].forEach((zone) => {
+            zone.addEventListener('click', (e) => {
+                if (e.target.tagName !== 'INPUT') {
+                    const inp = zone.querySelector('input[type="file"]');
+                    if (inp) inp.click();
+                }
+            });
+        });
+
+        // --------------------------------------------------------------
+        //  UTILITIES
+        // --------------------------------------------------------------
+        function formatTime(sec) {
+            if (!sec || sec < 0) return '0:00';
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60);
+            return m + ':' + String(s).padStart(2, '0');
+        }
+
+        // --------------------------------------------------------------
+        //  INIT
+        // --------------------------------------------------------------
+        playBtn.disabled = true;
+        statusMsg.textContent = 'drop TTML + audio to start';
+        textDisplay.innerHTML = '<span style="color:#ccc;font-size:28px;filter:none;">drop files</span>';
+
+        document.addEventListener('dragover', (e) => e.preventDefault());
+        document.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const files = e.dataTransfer.files;
+            if (!files.length) return;
+            for (const f of files) {
+                const name = f.name.toLowerCase();
+                if (name.endsWith('.ttml') || name.endsWith('.xml')) {
+                    handleTTMLFile(f);
+                } else if (f.type.startsWith('audio/')) {
+                    handleAudioFile(f);
+                }
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+            if (e.code === 'Space') {
+                e.preventDefault();
+                playBtn.click();
+            }
+        });
+
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                if (state.lines.length && state.audio) {
+                    renderLyrics(state.currentTime);
+                }
+            }, 200);
+        });
+    </script>
+</body>
+</html>
