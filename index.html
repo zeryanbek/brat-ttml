@@ -32,6 +32,25 @@
             max-width: 700px;
         }
 
+        .header-title {
+            text-align: center;
+            margin-bottom: 4px;
+        }
+        .header-title h2 {
+            font-weight: 500;
+            font-size: 22px;
+            letter-spacing: 1px;
+            color: #fff;
+            font-family: 'Arial Narrow', 'Arial', sans-serif;
+        }
+        .header-title p {
+            font-size: 13px;
+            color: #666;
+            margin-top: 2px;
+            font-family: 'Arial Narrow', 'Arial', sans-serif;
+            letter-spacing: 0.5px;
+        }
+
         .drop-row {
             display: flex;
             gap: 12px;
@@ -84,6 +103,15 @@
             cursor: pointer;
         }
 
+        .disclaimer {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            font-family: 'Arial Narrow', 'Arial', sans-serif;
+            margin-bottom: -4px;
+            margin-top: -4px;
+        }
+
         .brat-box-wrap {
             width: 100%;
             max-width: 550px;
@@ -98,16 +126,37 @@
             padding: 25px;
             transition: none !important;
             overflow: hidden;
+            margin-top: 6px;
         }
         .brat-box-wrap.has-content {
             border-color: #888;
         }
-        /* 🎤 Duet/Alternate Vocal Mode Inversion */
+
+        /* 🎤 Duet/Alternate Vocal Mode & Inversion Logic */
+        .brat-box-wrap {
+            background: #ffffff !important;
+            color: #000000 !important;
+        }
+        .brat-box-wrap #textDisplay {
+            color: #000000 !important;
+        }
         .brat-box-wrap.duet-mode {
             background: #000000 !important;
         }
         .brat-box-wrap.duet-mode #textDisplay {
             color: #ffffff !important;
+        }
+        .brat-box-wrap.duet-inverted {
+            background: #000000 !important;
+        }
+        .brat-box-wrap.duet-inverted #textDisplay {
+            color: #ffffff !important;
+        }
+        .brat-box-wrap.duet-mode.duet-inverted {
+            background: #ffffff !important;
+        }
+        .brat-box-wrap.duet-mode.duet-inverted #textDisplay {
+            color: #000000 !important;
         }
 
         #textDisplay {
@@ -119,7 +168,6 @@
             justify-content: center;
             font-family: 'Arial Narrow', 'Arial', sans-serif;
             font-weight: 500;
-            color: #000000;
             filter: blur(2px);
             text-align: justify;
             text-align-last: justify;
@@ -155,12 +203,23 @@
             z-index: 10;
             transition: none !important;
             
-            /* 🎶 BGV Overlay - Invert effect */
             color: white;
             mix-blend-mode: difference;
         }
-        .brat-box-wrap.duet-mode #bgvDisplay {
-            color: white;
+
+        .brat-box-wrap.bgv-solid #bgvDisplay {
+            color: #000000 !important;
+            mix-blend-mode: normal !important;
+            opacity: 0.75 !important;
+        }
+        .brat-box-wrap.duet-mode.bgv-solid #bgvDisplay {
+            color: #ffffff !important;
+        }
+        .brat-box-wrap.duet-inverted.bgv-solid #bgvDisplay {
+            color: #ffffff !important;
+        }
+        .brat-box-wrap.duet-mode.duet-inverted.bgv-solid #bgvDisplay {
+            color: #000000 !important;
         }
 
         #textDisplay .line-wrap, #bgvDisplay .line-wrap {
@@ -320,7 +379,7 @@
             font-size: 14px;
             color: #ccc;
             font-family: 'Arial Narrow', 'Arial', sans-serif;
-            min-width: 80px;
+            min-width: 90px;
         }
         .setting-row select, .setting-row input {
             flex: 1;
@@ -340,6 +399,28 @@
             padding: 0;
             accent-color: #fff;
             height: 4px;
+        }
+
+        .settings-btn {
+            background: #2a2a2a;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 6px;
+            padding: 6px 14px;
+            font-family: 'Arial Narrow', 'Arial', sans-serif;
+            font-size: 13px;
+            cursor: pointer;
+            transition: 0.2s;
+            min-width: 70px;
+            text-align: center;
+        }
+        .settings-btn:hover {
+            background: #444;
+            border-color: #888;
+        }
+        .settings-btn.active {
+            border-color: #fff;
+            background: #444;
         }
 
         @media (max-width: 520px) {
@@ -371,6 +452,12 @@
 </head>
 <body>
     <div class="app">
+
+        <div class="header-title">
+            <h2>Brat styled TTML visualiser</h2>
+            <p>V3 - 24-06-2026</p>
+        </div>
+
         <div class="drop-row">
             <div class="drop-zone" id="ttmlDrop">
                 <span class="hint">⬇ TTML</span>
@@ -383,6 +470,8 @@
                 <input type="file" accept="audio/*" id="audioInput" />
             </div>
         </div>
+
+        <div class="disclaimer">Make sure to turn off your dark reader!</div>
 
         <div class="brat-box-wrap" id="bratBox">
             <div id="textDisplay"></div>
@@ -397,6 +486,7 @@
                 <button class="settings-toggle" id="settingsToggle">⚙ Settings</button>
             </div>
             <div class="settings-panel" id="settingsPanel">
+                <!-- Main Text Settings -->
                 <div class="setting-row">
                     <label>Font Scale</label>
                     <input type="range" id="fontScale" min="0.5" max="1.5" step="0.05" value="1.0">
@@ -411,6 +501,58 @@
                         <option value="right">Right</option>
                     </select>
                 </div>
+
+                <!-- BGV Settings -->
+                <div class="setting-row">
+                    <label>BGV Mode</label>
+                    <select id="bgvMode">
+                        <option value="invert">Invert</option>
+                        <option value="solid">Solid</option>
+                    </select>
+                </div>
+                <div class="setting-row">
+                    <label>BGV Size</label>
+                    <input type="range" id="bgvScale" min="0.5" max="2.0" step="0.05" value="1.0">
+                    <span id="bgvScaleValue" style="min-width:30px; text-align:center; color:#fff;">1.0x</span>
+                </div>
+                <div class="setting-row">
+                    <label>BGV Align</label>
+                    <select id="bgvAlign">
+                        <option value="justify">Justify</option>
+                        <option value="left">Left</option>
+                        <option value="center">Center</option>
+                        <option value="right">Right</option>
+                    </select>
+                </div>
+
+                <!-- Sync Mode Settings -->
+                <div class="setting-row">
+                    <label>Main Sync Mode</label>
+                    <select id="mainSyncMode">
+                        <option value="word-by-word">Word-by-word</option>
+                        <option value="single-word">Single-word only</option>
+                    </select>
+                </div>
+                <div class="setting-row">
+                    <label>BGV Sync Mode</label>
+                    <select id="bgvSyncMode">
+                        <option value="word-by-word">Word-by-word</option>
+                        <option value="single-word">Single-word only</option>
+                    </select>
+                </div>
+
+                <!-- Action Buttons -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                    <label style="font-size:14px; color:#ccc; font-family:'Arial Narrow','Arial',sans-serif;">Enable BGV</label>
+                    <button class="settings-btn" id="bgvToggle">Disable</button>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                    <label style="font-size:14px; color:#ccc; font-family:'Arial Narrow','Arial',sans-serif;">Invert Duet</label>
+                    <button class="settings-btn" id="invertDuetBtn">Enable</button>
+                </div>
+                <div style="display: flex; justify-content: flex-end; margin-top: 4px;">
+                    <button class="settings-btn" id="resyncBtn">↻ Refresh Sync</button>
+                </div>
             </div>
             <div class="status-msg" id="statusMsg">drop TTML + audio to start</div>
         </div>
@@ -421,7 +563,7 @@
         //  STATE & SETTINGS
         // --------------------------------------------------------------
         const state = {
-            lines: [],          // each line: { agent, words: [main words], bgvWords: [bgv words] }
+            lines: [],          
             audio: null,
             isPlaying: false,
             currentTime: 0,
@@ -430,7 +572,14 @@
             loaded: false,
             settings: {
                 fontScale: 1.0,
-                textAlign: 'justify'
+                textAlign: 'justify',
+                bgvMode: 'solid',          // ✅ Updated default
+                bgvScale: 0.5,             // ✅ Updated default
+                bgvAlign: 'center',        // ✅ Updated default
+                bgvEnabled: true,
+                invertDuet: false,
+                mainSyncMode: 'word-by-word',
+                bgvSyncMode: 'single-word' // ✅ Updated default (fixed to match HTML option value)
             }
         };
 
@@ -450,6 +599,49 @@
         const fontScaleInput = document.getElementById('fontScale');
         const fontScaleValue = document.getElementById('fontScaleValue');
         const textAlignSelect = document.getElementById('textAlign');
+        const bgvModeSelect = document.getElementById('bgvMode');
+        const bgvScaleInput = document.getElementById('bgvScale');
+        const bgvScaleValue = document.getElementById('bgvScaleValue');
+        const bgvAlignSelect = document.getElementById('bgvAlign');
+        const bgvToggleBtn = document.getElementById('bgvToggle');
+        const invertDuetBtn = document.getElementById('invertDuetBtn');
+        const resyncBtn = document.getElementById('resyncBtn');
+        const mainSyncModeSelect = document.getElementById('mainSyncMode');
+        const bgvSyncModeSelect = document.getElementById('bgvSyncMode');
+
+        // ✅ NEW: Forces the UI elements to display the current state settings on load
+        function syncSettingsUI() {
+            fontScaleInput.value = state.settings.fontScale;
+            fontScaleValue.textContent = state.settings.fontScale.toFixed(2) + 'x';
+            textAlignSelect.value = state.settings.textAlign;
+            
+            bgvModeSelect.value = state.settings.bgvMode;
+            if (state.settings.bgvMode === 'solid') {
+                bratBox.classList.add('bgv-solid');
+            } else {
+                bratBox.classList.remove('bgv-solid');
+            }
+
+            bgvScaleInput.value = state.settings.bgvScale;
+            bgvScaleValue.textContent = state.settings.bgvScale.toFixed(2) + 'x';
+            bgvAlignSelect.value = state.settings.bgvAlign;
+			bgvDisplay.style.textAlign = state.settings.bgvAlign;
+			bgvDisplay.style.textAlignLast = state.settings.bgvAlign;
+
+            mainSyncModeSelect.value = state.settings.mainSyncMode;
+            bgvSyncModeSelect.value = state.settings.bgvSyncMode;
+
+            bgvToggleBtn.textContent = state.settings.bgvEnabled ? 'Disable' : 'Enable';
+            bgvToggleBtn.classList.toggle('active', !state.settings.bgvEnabled);
+
+            invertDuetBtn.textContent = state.settings.invertDuet ? 'Disable' : 'Enable';
+            invertDuetBtn.classList.toggle('active', state.settings.invertDuet);
+            if (state.settings.invertDuet) {
+                bratBox.classList.add('duet-inverted');
+            } else {
+                bratBox.classList.remove('duet-inverted');
+            }
+        }
 
         // --------------------------------------------------------------
         //  SETTINGS HANDLERS
@@ -462,17 +654,81 @@
             const val = parseFloat(e.target.value);
             state.settings.fontScale = val;
             fontScaleValue.textContent = val.toFixed(2) + 'x';
-            if(state.lines.length && state.audio) {
-                renderLyrics(state.currentTime);
-            }
+            if(state.lines.length && state.audio) renderLyrics(state.currentTime);
         });
 
         textAlignSelect.addEventListener('change', (e) => {
             state.settings.textAlign = e.target.value;
             textDisplay.style.textAlign = state.settings.textAlign;
             textDisplay.style.textAlignLast = state.settings.textAlign;
-            bgvDisplay.style.textAlign = state.settings.textAlign;
-            bgvDisplay.style.textAlignLast = state.settings.textAlign;
+        });
+
+        bgvModeSelect.addEventListener('change', (e) => {
+            state.settings.bgvMode = e.target.value;
+            if (state.settings.bgvMode === 'solid') {
+                bratBox.classList.add('bgv-solid');
+            } else {
+                bratBox.classList.remove('bgv-solid');
+            }
+            if(state.lines.length && state.audio) renderLyrics(state.currentTime);
+        });
+
+        bgvScaleInput.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            state.settings.bgvScale = val;
+            bgvScaleValue.textContent = val.toFixed(2) + 'x';
+            if(state.lines.length && state.audio) renderLyrics(state.currentTime);
+        });
+
+        bgvAlignSelect.addEventListener('change', (e) => {
+            state.settings.bgvAlign = e.target.value;
+            bgvDisplay.style.textAlign = state.settings.bgvAlign;
+            bgvDisplay.style.textAlignLast = state.settings.bgvAlign;
+        });
+
+        mainSyncModeSelect.addEventListener('change', (e) => {
+            state.settings.mainSyncMode = e.target.value;
+            if(state.lines.length && state.audio) renderLyrics(state.currentTime);
+        });
+
+        bgvSyncModeSelect.addEventListener('change', (e) => {
+            state.settings.bgvSyncMode = e.target.value;
+            if(state.lines.length && state.audio) renderLyrics(state.currentTime);
+        });
+
+        bgvToggleBtn.addEventListener('click', () => {
+            state.settings.bgvEnabled = !state.settings.bgvEnabled;
+            bgvToggleBtn.textContent = state.settings.bgvEnabled ? 'Disable' : 'Enable';
+            bgvToggleBtn.classList.toggle('active', !state.settings.bgvEnabled);
+            if(state.lines.length && state.audio) renderLyrics(state.currentTime);
+        });
+
+        invertDuetBtn.addEventListener('click', () => {
+            state.settings.invertDuet = !state.settings.invertDuet;
+            invertDuetBtn.textContent = state.settings.invertDuet ? 'Disable' : 'Enable';
+            invertDuetBtn.classList.toggle('active', state.settings.invertDuet);
+            if (state.settings.invertDuet) {
+                bratBox.classList.add('duet-inverted');
+            } else {
+                bratBox.classList.remove('duet-inverted');
+            }
+            if(state.lines.length && state.audio) renderLyrics(state.currentTime);
+        });
+
+        resyncBtn.addEventListener('click', () => {
+            if (!state.audio || !state.loaded) {
+                statusMsg.textContent = '⏳ Wait for TTML + audio to load first!';
+                return;
+            }
+            if (state.isPlaying) {
+                if (state.animationId) cancelAnimationFrame(state.animationId);
+                state.animationId = null;
+                statusMsg.textContent = '🔄 Refreshing sync...';
+                startSync();
+            } else {
+                renderLyrics(state.audio.currentTime);
+                statusMsg.textContent = '✅ Sync refreshed';
+            }
         });
 
         // --------------------------------------------------------------
@@ -519,9 +775,8 @@
                         const role = node.getAttribute('ttm:role') || node.getAttribute('role');
 
                         if (role === 'x-bg') {
-                            // ✅ BGV FIX: Properly parse childNodes to get spaces between spans
                             let bgvSpaceCount = spaceCount;
-                            spaceCount = 0; // Reset outer space count so it doesn't leak
+                            spaceCount = 0; 
                             
                             for (const bgvChild of node.childNodes) {
                                 if (bgvChild.nodeType === Node.TEXT_NODE) {
@@ -576,7 +831,7 @@
         // --------------------------------------------------------------
         //  TEXT FITTING – HARDLOCKED TO 460px + SETTINGS SCALE
         // --------------------------------------------------------------
-        function fitText(container, textContent) {
+        function fitText(container, textContent, scaleModifier = 1.0) {
             const TARGET_WIDTH = 460; 
             const TARGET_HEIGHT = 460;
             if (TARGET_WIDTH <= 0 || TARGET_HEIGHT <= 0) return 16;
@@ -635,8 +890,7 @@
 
             document.body.removeChild(clone);
             
-            // ✅ APPLY GLOBAL FONT SCALE FROM SETTINGS
-            const finalSize = best * state.settings.fontScale;
+            const finalSize = best * scaleModifier;
             container.style.fontSize = finalSize + 'px';
             return finalSize;
         }
@@ -674,12 +928,22 @@
                 }
 
                 // --- 1. MAIN VOCALS ---
-                const visibleWords = [];
-                for (const w of line.words) {
-                    if (w.start <= time + 0.001) {
-                        visibleWords.push(w.rawText);
-                    } else {
-                        break;
+                let visibleWords = [];
+
+                if (state.settings.mainSyncMode === 'single-word') {
+                    for (const w of line.words) {
+                        if (w.start <= time + 0.001 && w.end > time) {
+                            visibleWords = [w.rawText];
+                            break;
+                        }
+                    }
+                } else {
+                    for (const w of line.words) {
+                        if (w.start <= time + 0.001) {
+                            visibleWords.push(w.rawText);
+                        } else {
+                            break;
+                        }
                     }
                 }
 
@@ -688,40 +952,54 @@
                     const escaped = lineText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                     const html = `<span class="line-wrap">${escaped}</span>`;
                     textDisplay.innerHTML = html;
-                    fitText(textDisplay, html);
+                    fitText(textDisplay, html, state.settings.fontScale);
                 } else {
                     textDisplay.innerHTML = '';
                 }
             }
 
-            // --- 2. BACKGROUND VOCALS (Fixed Independency + Build-up + SPACES!) ---
-            let currentBgvLineIdx = -1;
-            for (let i = 0; i < lines.length; i++) {
-                if (lines[i].bgvWords.length && lines[i].bgvWords[0].start <= time + 0.001) {
-                    currentBgvLineIdx = i;
-                }
-            }
-
-            if (currentBgvLineIdx !== -1) {
-                const bgvLine = lines[currentBgvLineIdx];
-                const lastWord = bgvLine.bgvWords[bgvLine.bgvWords.length - 1];
-
-                if (time <= lastWord.end) {
-                    const visibleBgvWords = [];
-                    for (const w of bgvLine.bgvWords) {
-                        if (w.start <= time + 0.001) {
-                            visibleBgvWords.push(w.rawText);
-                        } else {
-                            break;
-                        }
+            // --- 2. BACKGROUND VOCALS ---
+            if (state.settings.bgvEnabled) {
+                let currentBgvLineIdx = -1;
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].bgvWords.length && lines[i].bgvWords[0].start <= time + 0.001) {
+                        currentBgvLineIdx = i;
                     }
+                }
 
-                    if (visibleBgvWords.length) {
-                        const bgvText = visibleBgvWords.join('');
-                        const escapedBgv = bgvText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                        const htmlBgv = `<span class="line-wrap">${escapedBgv}</span>`;
-                        bgvDisplay.innerHTML = htmlBgv;
-                        fitText(bgvDisplay, htmlBgv);
+                if (currentBgvLineIdx !== -1) {
+                    const bgvLine = lines[currentBgvLineIdx];
+                    const lastWord = bgvLine.bgvWords[bgvLine.bgvWords.length - 1];
+
+                    if (time <= lastWord.end) {
+                        let visibleBgvWords = [];
+
+                        if (state.settings.bgvSyncMode === 'single-word') {
+                            for (const w of bgvLine.bgvWords) {
+                                if (w.start <= time + 0.001 && w.end > time) {
+                                    visibleBgvWords = [w.rawText];
+                                    break;
+                                }
+                            }
+                        } else {
+                            for (const w of bgvLine.bgvWords) {
+                                if (w.start <= time + 0.001) {
+                                    visibleBgvWords.push(w.rawText);
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (visibleBgvWords.length) {
+                            const bgvText = visibleBgvWords.join('');
+                            const escapedBgv = bgvText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                            const htmlBgv = `<span class="line-wrap">${escapedBgv}</span>`;
+                            bgvDisplay.innerHTML = htmlBgv;
+                            fitText(bgvDisplay, htmlBgv, state.settings.bgvScale);
+                        } else {
+                            bgvDisplay.innerHTML = '';
+                        }
                     } else {
                         bgvDisplay.innerHTML = '';
                     }
@@ -922,7 +1200,10 @@
         // --------------------------------------------------------------
         playBtn.disabled = true;
         statusMsg.textContent = 'drop TTML + audio to start';
-        textDisplay.innerHTML = '<span style="color:#ccc;font-size:28px;filter:none;">drop files</span>';
+        textDisplay.innerHTML = '<span style="color:#666;font-size:28px;filter:none;">drop files</span>';
+
+        // ✅ Apply the UI defaults immediately!
+        syncSettingsUI();
 
         document.addEventListener('dragover', (e) => e.preventDefault());
         document.addEventListener('drop', (e) => {
