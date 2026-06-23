@@ -12,7 +12,7 @@
         }
 
         body {
-            background: #000000; /* ✅ Black website background */
+            background: #000000; /* Black website background */
             font-family: 'Arial Narrow', 'Arial', sans-serif;
             display: flex;
             justify-content: center;
@@ -116,7 +116,7 @@
             width: 100%;
             max-width: 550px;
             aspect-ratio: 1 / 1;
-            background: #ffffff; /* ✅ Default white box inside */
+            background: #ffffff; 
             position: relative;
             border: 1px solid #444;
             box-shadow: 0 8px 30px rgba(255, 255, 255, 0.05);
@@ -132,7 +132,7 @@
             border-color: #888;
         }
 
-        /* 🎤 Duet/Alternate Vocal Mode & Inversion Logic */
+        /* Duet/Alternate Vocal Mode & Inversion Logic */
         .brat-box-wrap {
             background: #ffffff !important;
             color: #000000 !important;
@@ -336,7 +336,7 @@
             padding: 4px 0;
         }
 
-        /* ⚙️ SETTINGS PANEL */
+        /* SETTINGS PANEL */
         .settings-toggle {
             background: transparent;
             color: #aaa;
@@ -455,7 +455,7 @@
 
         <div class="header-title">
             <h2>Brat styled TTML visualiser</h2>
-            <p>V3 - 24-06-2026</p>
+            <p>V4 - 24-06-2026</p>
         </div>
 
         <div class="drop-row">
@@ -541,6 +541,14 @@
                     </select>
                 </div>
 
+                <!-- TTML Offset Settings -->
+                <div class="setting-row">
+                    <label>TTML Offset</label>
+                    <input type="range" id="ttmlOffset" min="-10" max="10" step="0.01" value="0">
+                    <span id="ttmlOffsetValue" style="min-width:50px; text-align:center; color:#fff;">0.00s</span>
+                    <button class="settings-btn" id="resetTtmlOffsetBtn" style="min-width: 36px; padding: 0 8px; font-size: 16px; line-height: 1.2;" title="Reset offset to 0.00s">↺</button>
+                </div>
+
                 <!-- Action Buttons -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
                     <label style="font-size:14px; color:#ccc; font-family:'Arial Narrow','Arial',sans-serif;">Enable BGV</label>
@@ -573,13 +581,14 @@
             settings: {
                 fontScale: 1.0,
                 textAlign: 'justify',
-                bgvMode: 'solid',          // ✅ Updated default
-                bgvScale: 0.5,             // ✅ Updated default
-                bgvAlign: 'center',        // ✅ Updated default
+                bgvMode: 'solid',          
+                bgvScale: 0.5,             
+                bgvAlign: 'center',        
                 bgvEnabled: true,
                 invertDuet: false,
                 mainSyncMode: 'word-by-word',
-                bgvSyncMode: 'single-word' // ✅ Updated default (fixed to match HTML option value)
+                bgvSyncMode: 'single-word',
+                ttmlOffset: 0
             }
         };
 
@@ -608,8 +617,10 @@
         const resyncBtn = document.getElementById('resyncBtn');
         const mainSyncModeSelect = document.getElementById('mainSyncMode');
         const bgvSyncModeSelect = document.getElementById('bgvSyncMode');
+        const ttmlOffsetInput = document.getElementById('ttmlOffset');
+        const ttmlOffsetValue = document.getElementById('ttmlOffsetValue');
+		const resetTtmlOffsetBtn = document.getElementById('resetTtmlOffsetBtn');
 
-        // ✅ NEW: Forces the UI elements to display the current state settings on load
         function syncSettingsUI() {
             fontScaleInput.value = state.settings.fontScale;
             fontScaleValue.textContent = state.settings.fontScale.toFixed(2) + 'x';
@@ -625,11 +636,15 @@
             bgvScaleInput.value = state.settings.bgvScale;
             bgvScaleValue.textContent = state.settings.bgvScale.toFixed(2) + 'x';
             bgvAlignSelect.value = state.settings.bgvAlign;
-			bgvDisplay.style.textAlign = state.settings.bgvAlign;
-			bgvDisplay.style.textAlignLast = state.settings.bgvAlign;
+            
+            bgvDisplay.style.textAlign = state.settings.bgvAlign;
+            bgvDisplay.style.textAlignLast = state.settings.bgvAlign;
 
             mainSyncModeSelect.value = state.settings.mainSyncMode;
             bgvSyncModeSelect.value = state.settings.bgvSyncMode;
+
+            ttmlOffsetInput.value = state.settings.ttmlOffset;
+            ttmlOffsetValue.textContent = state.settings.ttmlOffset.toFixed(2) + 's';
 
             bgvToggleBtn.textContent = state.settings.bgvEnabled ? 'Disable' : 'Enable';
             bgvToggleBtn.classList.toggle('active', !state.settings.bgvEnabled);
@@ -695,6 +710,20 @@
             state.settings.bgvSyncMode = e.target.value;
             if(state.lines.length && state.audio) renderLyrics(state.currentTime);
         });
+		
+        ttmlOffsetInput.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            state.settings.ttmlOffset = val;
+            ttmlOffsetValue.textContent = val.toFixed(2) + 's';
+            if(state.lines.length && state.audio) renderLyrics(state.currentTime);
+        });
+		
+		resetTtmlOffsetBtn.addEventListener('click', () => {
+			state.settings.ttmlOffset = 0;
+			ttmlOffsetInput.value = 0;
+			ttmlOffsetValue.textContent = '0.00s';
+			if(state.lines.length && state.audio) renderLyrics(state.currentTime);
+		});		
 
         bgvToggleBtn.addEventListener('click', () => {
             state.settings.bgvEnabled = !state.settings.bgvEnabled;
@@ -899,6 +928,9 @@
         //  RENDER
         // --------------------------------------------------------------
         function renderLyrics(time) {
+            // Apply the TTML Offset straight away
+            const adjustedTime = time + state.settings.ttmlOffset;
+
             const lines = state.lines;
             if (!lines.length) {
                 textDisplay.innerHTML = '';
@@ -909,7 +941,7 @@
 
             let currentLineIdx = -1;
             for (let i = 0; i < lines.length; i++) {
-                if (lines[i].words.length && lines[i].words[0].start <= time + 0.001) {
+                if (lines[i].words.length && lines[i].words[0].start <= adjustedTime + 0.001) {
                     currentLineIdx = i;
                 } else {
                     break;
@@ -932,14 +964,14 @@
 
                 if (state.settings.mainSyncMode === 'single-word') {
                     for (const w of line.words) {
-                        if (w.start <= time + 0.001 && w.end > time) {
+                        if (w.start <= adjustedTime + 0.001 && w.end > adjustedTime) {
                             visibleWords = [w.rawText];
                             break;
                         }
                     }
                 } else {
                     for (const w of line.words) {
-                        if (w.start <= time + 0.001) {
+                        if (w.start <= adjustedTime + 0.001) {
                             visibleWords.push(w.rawText);
                         } else {
                             break;
@@ -962,7 +994,7 @@
             if (state.settings.bgvEnabled) {
                 let currentBgvLineIdx = -1;
                 for (let i = 0; i < lines.length; i++) {
-                    if (lines[i].bgvWords.length && lines[i].bgvWords[0].start <= time + 0.001) {
+                    if (lines[i].bgvWords.length && lines[i].bgvWords[0].start <= adjustedTime + 0.001) {
                         currentBgvLineIdx = i;
                     }
                 }
@@ -971,19 +1003,19 @@
                     const bgvLine = lines[currentBgvLineIdx];
                     const lastWord = bgvLine.bgvWords[bgvLine.bgvWords.length - 1];
 
-                    if (time <= lastWord.end) {
+                    if (adjustedTime <= lastWord.end) {
                         let visibleBgvWords = [];
 
                         if (state.settings.bgvSyncMode === 'single-word') {
                             for (const w of bgvLine.bgvWords) {
-                                if (w.start <= time + 0.001 && w.end > time) {
+                                if (w.start <= adjustedTime + 0.001 && w.end > adjustedTime) {
                                     visibleBgvWords = [w.rawText];
                                     break;
                                 }
                             }
                         } else {
                             for (const w of bgvLine.bgvWords) {
-                                if (w.start <= time + 0.001) {
+                                if (w.start <= adjustedTime + 0.001) {
                                     visibleBgvWords.push(w.rawText);
                                 } else {
                                     break;
@@ -1202,7 +1234,6 @@
         statusMsg.textContent = 'drop TTML + audio to start';
         textDisplay.innerHTML = '<span style="color:#666;font-size:28px;filter:none;">drop files</span>';
 
-        // ✅ Apply the UI defaults immediately!
         syncSettingsUI();
 
         document.addEventListener('dragover', (e) => e.preventDefault());
