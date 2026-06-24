@@ -4,1270 +4,1206 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>brat visualizer</title>
+    <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fix-webm-duration@1.0.6/fix-webm-duration.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            background: #000000; /* Black website background */
-            font-family: 'Arial Narrow', 'Arial', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            color: #eee;
-            user-select: none;
-        }
-
-        .app {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 16px;
-            padding: 20px;
-            width: 100%;
-            max-width: 700px;
-        }
-
-        .header-title {
-            text-align: center;
-            margin-bottom: 4px;
-        }
-        .header-title h2 {
-            font-weight: 500;
-            font-size: 22px;
-            letter-spacing: 1px;
-            color: #fff;
-            font-family: 'Arial Narrow', 'Arial', sans-serif;
-        }
-        .header-title p {
-            font-size: 13px;
-            color: #666;
-            margin-top: 2px;
-            font-family: 'Arial Narrow', 'Arial', sans-serif;
-            letter-spacing: 0.5px;
-        }
-
-        .drop-row {
-            display: flex;
-            gap: 12px;
-            width: 100%;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .drop-zone {
-            flex: 1 1 200px;
-            min-width: 140px;
-            padding: 12px 16px;
-            border: 2px dashed #555;
-            border-radius: 8px;
-            background: #1a1a1a;
-            text-align: center;
-            font-size: 14px;
-            color: #aaa;
-            transition: border-color 0.2s, background 0.2s;
-            cursor: pointer;
-            position: relative;
-        }
-        .drop-zone.dragover {
-            border-color: #fff;
-            background: #222;
-        }
-        .drop-zone.has-file {
-            border-color: #fff;
-            border-style: solid;
-            background: #2a2a2a;
-        }
-        .drop-zone .file-name {
-            font-size: 12px;
-            color: #fff;
-            font-weight: 600;
-            margin-top: 4px;
-            display: block;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .drop-zone .hint {
-            font-size: 12px;
-            color: #888;
-        }
-        .drop-zone input[type="file"] {
-            position: absolute;
-            inset: 0;
-            opacity: 0;
-            cursor: pointer;
-        }
-
-        .disclaimer {
-            text-align: center;
-            color: #666;
-            font-size: 12px;
-            font-family: 'Arial Narrow', 'Arial', sans-serif;
-            margin-bottom: -4px;
-            margin-top: -4px;
-        }
-
-        .brat-box-wrap {
-            width: 100%;
-            max-width: 550px;
-            aspect-ratio: 1 / 1;
-            background: #ffffff; 
-            position: relative;
-            border: 1px solid #444;
-            box-shadow: 0 8px 30px rgba(255, 255, 255, 0.05);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 25px;
-            transition: none !important;
-            overflow: hidden;
-            margin-top: 6px;
-        }
-        .brat-box-wrap.has-content {
-            border-color: #888;
-        }
-
-        /* Duet/Alternate Vocal Mode & Inversion Logic */
-        .brat-box-wrap {
-            background: #ffffff !important;
-            color: #000000 !important;
-        }
-        .brat-box-wrap #textDisplay {
-            color: #000000 !important;
-        }
-        .brat-box-wrap.duet-mode {
-            background: #000000 !important;
-        }
-        .brat-box-wrap.duet-mode #textDisplay {
-            color: #ffffff !important;
-        }
-        .brat-box-wrap.duet-inverted {
-            background: #000000 !important;
-        }
-        .brat-box-wrap.duet-inverted #textDisplay {
-            color: #ffffff !important;
-        }
-        .brat-box-wrap.duet-mode.duet-inverted {
-            background: #ffffff !important;
-        }
-        .brat-box-wrap.duet-mode.duet-inverted #textDisplay {
-            color: #000000 !important;
-        }
-
-        #textDisplay {
-            width: 100%; 
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Arial Narrow', 'Arial', sans-serif;
-            font-weight: 500;
-            filter: blur(2px);
-            text-align: justify;
-            text-align-last: justify;
-            line-height: 1.2;
-            padding: 0px;
-            box-sizing: border-box;
-            word-break: keep-all;
-            overflow: visible; 
-            transition: none !important;
-        }
-
-        #bgvDisplay {
-            position: absolute;
-            top: 25px;
-            left: 0; 
-            width: 100%;
-            height: calc(100% - 50px);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Arial Narrow', 'Arial', sans-serif;
-            font-weight: 500;
-            filter: blur(2px);
-            text-align: justify;
-            text-align-last: justify;
-            line-height: 1.2;
-            padding: 0px;
-            box-sizing: border-box;
-            word-break: keep-all;
-            overflow: visible; 
-            pointer-events: none;
-            z-index: 10;
-            transition: none !important;
-            
-            color: white;
-            mix-blend-mode: difference;
-        }
-
-        .brat-box-wrap.bgv-solid #bgvDisplay {
-            color: #000000 !important;
-            mix-blend-mode: normal !important;
-            opacity: 0.75 !important;
-        }
-        .brat-box-wrap.duet-mode.bgv-solid #bgvDisplay {
-            color: #ffffff !important;
-        }
-        .brat-box-wrap.duet-inverted.bgv-solid #bgvDisplay {
-            color: #ffffff !important;
-        }
-        .brat-box-wrap.duet-mode.duet-inverted.bgv-solid #bgvDisplay {
-            color: #000000 !important;
-        }
-
-        #textDisplay .line-wrap, #bgvDisplay .line-wrap {
-            display: block;
-            width: 100%;
-            transform: scaleX(0.90) scaleY(1.05);
-            transform-origin: center center;
-            letter-spacing: -0.5px;
-            padding: 0;
-        }
-
-        .controls {
-            width: 100%;
-            max-width: 500px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .ctrl-row {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .ctrl-row button {
-            background: #fff;
-            color: #000;
-            border: none;
-            border-radius: 30px;
-            padding: 10px 24px;
-            font-size: 15px;
-            font-weight: 600;
-            font-family: 'Arial Narrow', 'Arial', sans-serif;
-            cursor: pointer;
-            transition: background 0.2s, transform 0.1s;
-            min-width: 80px;
-            letter-spacing: 0.5px;
-        }
-        .ctrl-row button:hover {
-            background: #ddd;
-        }
-        .ctrl-row button:active {
-            transform: scale(0.96);
-        }
-        .ctrl-row button:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-            background: #555;
-        }
-
-        .ctrl-row .time-display {
-            font-size: 14px;
-            font-family: 'Arial Narrow', 'Arial', sans-serif;
-            color: #aaa;
-            min-width: 80px;
-            text-align: center;
-        }
-
-        input[type="range"]#progressBar {
-            flex: 1;
-            height: 6px;
-            -webkit-appearance: none;
-            appearance: none;
-            border-radius: 4px;
-            background: #555;
-            cursor: pointer;
-            outline: none;
-            transition: height 0.15s;
-        }
-        input[type="range"]#progressBar::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: #fff;
-            cursor: pointer;
-            border: 2px solid #000;
-            box-shadow: 0 0 0 1px #fff;
-        }
-        input[type="range"]#progressBar::-webkit-slider-thumb:hover {
-            transform: scale(1.1);
-        }
-        input[type="range"]#progressBar::-moz-range-thumb {
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: #fff;
-            cursor: pointer;
-            border: 2px solid #000;
-            box-shadow: 0 0 0 1px #fff;
-        }
-        input[type="range"]#progressBar::-webkit-slider-runnable-track {
-            height: 6px;
-            border-radius: 4px;
-            background: #555;
-        }
-        input[type="range"]#progressBar::-moz-range-track {
-            height: 6px;
-            border-radius: 4px;
-            background: #555;
-        }
-        input[type="range"]#progressBar:hover {
-            height: 10px;
-        }
-
-        .status-msg {
-            font-size: 14px;
-            color: #888;
-            font-family: 'Arial Narrow', 'Arial', sans-serif;
-            text-align: center;
-            min-height: 20px;
-            padding: 4px 0;
-        }
-
-        /* SETTINGS PANEL */
-        .settings-toggle {
-            background: transparent;
-            color: #aaa;
-            border: 1px solid #444;
-            border-radius: 20px;
-            padding: 6px 16px;
-            font-size: 13px;
-            font-family: 'Arial Narrow', 'Arial', sans-serif;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .settings-toggle:hover {
-            border-color: #fff;
-            color: #fff;
-        }
-
-        .settings-panel {
-            width: 100%;
-            max-width: 500px;
-            background: #1a1a1a;
-            border: 1px solid #333;
-            border-radius: 12px;
-            padding: 16px 20px;
-            display: none;
-            flex-direction: column;
-            gap: 16px;
-            transition: all 0.2s;
-        }
-        .settings-panel.open {
-            display: flex;
-        }
-
-        .setting-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 16px;
-        }
-        .setting-row label {
-            font-size: 14px;
-            color: #ccc;
-            font-family: 'Arial Narrow', 'Arial', sans-serif;
-            min-width: 90px;
-        }
-        .setting-row select, .setting-row input {
-            flex: 1;
-            background: #2a2a2a;
-            border: 1px solid #444;
-            color: #fff;
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-family: 'Arial Narrow', 'Arial', sans-serif;
-            font-size: 14px;
-            outline: none;
-        }
-        .setting-row select option {
-            background: #1a1a1a;
-        }
-        .setting-row input[type="range"] {
-            padding: 0;
-            accent-color: #fff;
-            height: 4px;
-        }
-
-        .settings-btn {
-            background: #2a2a2a;
-            color: #fff;
-            border: 1px solid #555;
-            border-radius: 6px;
-            padding: 6px 14px;
-            font-family: 'Arial Narrow', 'Arial', sans-serif;
-            font-size: 13px;
-            cursor: pointer;
-            transition: 0.2s;
-            min-width: 70px;
-            text-align: center;
-        }
-        .settings-btn:hover {
-            background: #444;
-            border-color: #888;
-        }
-        .settings-btn.active {
-            border-color: #fff;
-            background: #444;
-        }
-
-        @media (max-width: 520px) {
-            .brat-box-wrap {
-                max-width: 100%;
-                padding: 15px;
-            }
-            #textDisplay, #bgvDisplay {
-                width: 100%; 
-            }
-            .drop-zone {
-                flex: 1 1 100%;
-                min-width: 0;
-            }
-            .ctrl-row button {
-                padding: 8px 16px;
-                font-size: 13px;
-                min-width: 60px;
-            }
-            .ctrl-row .time-display {
-                font-size: 12px;
-                min-width: 60px;
-            }
-            #textDisplay, #bgvDisplay {
-                filter: blur(1.5px);
-            }
-        }
+        /* (same styles, unchanged) */
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#000; font-family:'Arial Narrow',Arial,sans-serif; display:flex; justify-content:center; align-items:center; min-height:100vh; color:#eee; user-select:none; }
+        .app { display:flex; flex-direction:column; align-items:center; gap:16px; padding:20px; width:100%; max-width:700px; }
+        .header-title { text-align:center; margin-bottom:4px; }
+        .header-title h2 { font-weight:500; font-size:22px; letter-spacing:1px; color:#fff; }
+        .header-title p { font-size:13px; color:#666; margin-top:2px; letter-spacing:.5px; }
+        .drop-row { display:flex; gap:12px; width:100%; flex-wrap:wrap; justify-content:center; }
+        .drop-zone { flex:1 1 200px; min-width:140px; padding:12px 16px; border:2px dashed #555; border-radius:8px; background:#1a1a1a; text-align:center; font-size:14px; color:#aaa; transition:border-color .2s,background .2s; cursor:pointer; position:relative; }
+        .drop-zone.dragover { border-color:#fff; background:#222; }
+        .drop-zone.has-file { border-color:#fff; border-style:solid; background:#2a2a2a; }
+        .drop-zone .file-name { font-size:12px; color:#fff; font-weight:600; margin-top:4px; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .drop-zone .hint { font-size:12px; color:#888; }
+        .drop-zone input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; }
+        .disclaimer { text-align:center; color:#666; font-size:12px; margin-bottom:-4px; margin-top:-4px; }
+        .brat-box-wrap { width:100%; max-width:550px; aspect-ratio:1/1; background:#fff; position:relative; border:1px solid #444; box-shadow:0 8px 30px rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center; padding:25px; overflow:hidden; margin-top:6px; }
+        .brat-box-wrap.has-content { border-color:#888; }
+        .brat-box-wrap { background:#fff !important; color:#000 !important; }
+        .brat-box-wrap #textDisplay { color:#000 !important; }
+        .brat-box-wrap.duet-mode { background:#000 !important; }
+        .brat-box-wrap.duet-mode #textDisplay { color:#fff !important; }
+        .brat-box-wrap.duet-inverted { background:#000 !important; }
+        .brat-box-wrap.duet-inverted #textDisplay { color:#fff !important; }
+        .brat-box-wrap.duet-mode.duet-inverted { background:#fff !important; }
+        .brat-box-wrap.duet-mode.duet-inverted #textDisplay { color:#000 !important; }
+        #textDisplay { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:500; filter:blur(2px); text-align:justify; text-align-last:justify; line-height:1.2; padding:0; box-sizing:border-box; word-break:keep-all; overflow:visible; transition:none !important; }
+        #bgvDisplay { position:absolute; top:25px; left:0; width:100%; height:calc(100% - 50px); display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:500; filter:blur(2px); text-align:justify; text-align-last:justify; line-height:1.2; padding:0; box-sizing:border-box; word-break:keep-all; overflow:visible; pointer-events:none; z-index:10; transition:none !important; color:#fff; mix-blend-mode:difference; }
+        .brat-box-wrap.bgv-solid #bgvDisplay { color:#000 !important; mix-blend-mode:normal !important; opacity:.75 !important; }
+        .brat-box-wrap.duet-mode.bgv-solid #bgvDisplay { color:#fff !important; }
+        .brat-box-wrap.duet-inverted.bgv-solid #bgvDisplay { color:#fff !important; }
+        .brat-box-wrap.duet-mode.duet-inverted.bgv-solid #bgvDisplay { color:#000 !important; }
+        #textDisplay .line-wrap, #bgvDisplay .line-wrap { display:block; width:100%; transform:scaleX(.90) scaleY(1.35); transform-origin:center center; letter-spacing:-.5px; padding:0; }
+        .controls { width:100%; max-width:500px; display:flex; flex-direction:column; gap:10px; }
+        .ctrl-row { display:flex; align-items:center; gap:12px; }
+        .ctrl-row button { background:#fff; color:#000; border:none; border-radius:30px; padding:10px 24px; font-size:15px; font-weight:600; cursor:pointer; transition:background .2s,transform .1s; min-width:80px; letter-spacing:.5px; }
+        .ctrl-row button:hover { background:#ddd; }
+        .ctrl-row button:active { transform:scale(.96); }
+        .ctrl-row button:disabled { opacity:.3; cursor:not-allowed; background:#555; }
+        .ctrl-row .time-display { font-size:14px; color:#aaa; min-width:80px; text-align:center; }
+        input[type="range"]#progressBar { flex:1; height:6px; -webkit-appearance:none; appearance:none; border-radius:4px; background:#555; cursor:pointer; outline:none; transition:height .15s; }
+        input[type="range"]#progressBar::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:14px; height:14px; border-radius:50%; background:#fff; cursor:pointer; border:2px solid #000; box-shadow:0 0 0 1px #fff; }
+        input[type="range"]#progressBar::-webkit-slider-thumb:hover { transform:scale(1.1); }
+        input[type="range"]#progressBar::-moz-range-thumb { width:14px; height:14px; border-radius:50%; background:#fff; cursor:pointer; border:2px solid #000; box-shadow:0 0 0 1px #fff; }
+        input[type="range"]#progressBar::-webkit-slider-runnable-track { height:6px; border-radius:4px; background:#555; }
+        input[type="range"]#progressBar::-moz-range-track { height:6px; border-radius:4px; background:#555; }
+        input[type="range"]#progressBar:hover { height:10px; }
+        .status-msg { font-size:14px; color:#888; text-align:center; min-height:20px; padding:4px 0; }
+        .settings-toggle { display:inline-flex; align-items:center; justify-content:center; background:transparent; color:#aaa; border:1px solid #444; border-radius:20px; padding:6px 16px; font-size:13px; cursor:pointer; transition:all .2s; min-width:80px; text-align:center; }
+        .settings-toggle:hover { border-color:#fff; color:#fff; }
+        .settings-panel { width:100%; max-width:500px; background:#1a1a1a; border:1px solid #333; border-radius:12px; padding:16px 20px; display:none; flex-direction:column; gap:16px; }
+        .settings-panel.open { display:flex; }
+        .setting-row { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+        .setting-row label { font-size:14px; color:#ccc; min-width:90px; }
+        .setting-row select, .setting-row input { flex:1; background:#2a2a2a; border:1px solid #444; color:#fff; padding:6px 12px; border-radius:8px; font-size:14px; outline:none; }
+        .setting-row select option { background:#1a1a1a; }
+        .setting-row input[type="range"] { padding:0; accent-color:#fff; height:4px; }
+        .settings-btn { display:inline-flex; align-items:center; justify-content:center; background:#2a2a2a; color:#fff; border:1px solid #555; border-radius:6px; padding:6px 14px; font-size:13px; cursor:pointer; transition:.2s; min-width:70px; text-align:center; }
+        .settings-btn:hover { background:#444; border-color:#888; }
+        .settings-btn.active { border-color:#fff; background:#444; }
+        .merge-note { margin-top:8px; font-size:12px; color:#888; text-align:center; border-top:1px solid #333; padding-top:8px; word-break:break-all; background:#222; border-radius:4px; padding:6px; display:none; }
+        .merge-note code { background:#111; padding:2px 6px; border-radius:3px; color:#fff; display:inline-block; max-width:100%; overflow-x:auto; }
+        .merge-note .copy-btn { background:#444; color:#fff; border:none; border-radius:4px; padding:2px 10px; font-size:11px; cursor:pointer; margin-left:6px; transition:background .2s; }
+        .merge-note .copy-btn:hover { background:#666; }
+        .copy-feedback { font-size:10px; color:#0f0; margin-left:6px; display:inline-block; opacity:0; transition:opacity .3s; }
+        .copy-feedback.show { opacity:1; }
+        .merge-instruction { color:#aaa; font-size:11px; margin-top:2px; }
+        @media (max-width:520px) { .brat-box-wrap { max-width:100%; padding:15px; } #textDisplay,#bgvDisplay { width:100%; } .drop-zone { flex:1 1 100%; min-width:0; } .ctrl-row button { padding:8px 16px; font-size:13px; min-width:60px; } .ctrl-row .time-display { font-size:12px; min-width:60px; } #textDisplay,#bgvDisplay { filter:blur(1.5px); } }
     </style>
 </head>
 <body>
-    <div class="app">
-
-        <div class="header-title">
-            <h2>Brat styled TTML visualiser</h2>
-            <p>V4 - 24-06-2026</p>
+<div class="app">
+    <div class="header-title">
+        <h2>Brat styled TTML visualiser</h2>
+        <p>V5 - 25-06-2026</p>
+    </div>
+    <div class="drop-row">
+        <div class="drop-zone" id="ttmlDrop">
+            <span class="hint">⬇ TTML</span>
+            <span class="file-name" id="ttmlName">—</span>
+            <input type="file" accept=".ttml,.xml" id="ttmlInput" />
         </div>
-
-        <div class="drop-row">
-            <div class="drop-zone" id="ttmlDrop">
-                <span class="hint">⬇ TTML</span>
-                <span class="file-name" id="ttmlName">—</span>
-                <input type="file" accept=".ttml,.xml" id="ttmlInput" />
-            </div>
-            <div class="drop-zone" id="audioDrop">
-                <span class="hint">⬇ AUDIO</span>
-                <span class="file-name" id="audioName">—</span>
-                <input type="file" accept="audio/*" id="audioInput" />
-            </div>
-        </div>
-
-        <div class="disclaimer">Make sure to turn off your dark reader!</div>
-
-        <div class="brat-box-wrap" id="bratBox">
-            <div id="textDisplay"></div>
-            <div id="bgvDisplay"></div>
-        </div>
-
-        <div class="controls">
-            <div class="ctrl-row">
-                <button id="playBtn">▶ Play</button>
-                <input type="range" id="progressBar" min="0" max="1000" value="0" step="0.1" />
-                <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
-                <button class="settings-toggle" id="settingsToggle">⚙ Settings</button>
-            </div>
-            <div class="settings-panel" id="settingsPanel">
-                <!-- Main Text Settings -->
-                <div class="setting-row">
-                    <label>Font Scale</label>
-                    <input type="range" id="fontScale" min="0.5" max="1.5" step="0.05" value="1.0">
-                    <span id="fontScaleValue" style="min-width:30px; text-align:center; color:#fff;">1.0x</span>
-                </div>
-                <div class="setting-row">
-                    <label>Text Align</label>
-                    <select id="textAlign">
-                        <option value="justify">Justify</option>
-                        <option value="left">Left</option>
-                        <option value="center">Center</option>
-                        <option value="right">Right</option>
-                    </select>
-                </div>
-
-                <!-- BGV Settings -->
-                <div class="setting-row">
-                    <label>BGV Mode</label>
-                    <select id="bgvMode">
-                        <option value="invert">Invert</option>
-                        <option value="solid">Solid</option>
-                    </select>
-                </div>
-                <div class="setting-row">
-                    <label>BGV Size</label>
-                    <input type="range" id="bgvScale" min="0.5" max="2.0" step="0.05" value="1.0">
-                    <span id="bgvScaleValue" style="min-width:30px; text-align:center; color:#fff;">1.0x</span>
-                </div>
-                <div class="setting-row">
-                    <label>BGV Align</label>
-                    <select id="bgvAlign">
-                        <option value="justify">Justify</option>
-                        <option value="left">Left</option>
-                        <option value="center">Center</option>
-                        <option value="right">Right</option>
-                    </select>
-                </div>
-
-                <!-- Sync Mode Settings -->
-                <div class="setting-row">
-                    <label>Main Sync Mode</label>
-                    <select id="mainSyncMode">
-                        <option value="word-by-word">Word-by-word</option>
-                        <option value="single-word">Single-word only</option>
-                    </select>
-                </div>
-                <div class="setting-row">
-                    <label>BGV Sync Mode</label>
-                    <select id="bgvSyncMode">
-                        <option value="word-by-word">Word-by-word</option>
-                        <option value="single-word">Single-word only</option>
-                    </select>
-                </div>
-
-                <!-- TTML Offset Settings -->
-                <div class="setting-row">
-                    <label>TTML Offset</label>
-                    <input type="range" id="ttmlOffset" min="-10" max="10" step="0.01" value="0">
-                    <span id="ttmlOffsetValue" style="min-width:50px; text-align:center; color:#fff;">0.00s</span>
-                    <button class="settings-btn" id="resetTtmlOffsetBtn" style="min-width: 36px; padding: 0 8px; font-size: 16px; line-height: 1.2;" title="Reset offset to 0.00s">↺</button>
-                </div>
-
-                <!-- Action Buttons -->
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
-                    <label style="font-size:14px; color:#ccc; font-family:'Arial Narrow','Arial',sans-serif;">Enable BGV</label>
-                    <button class="settings-btn" id="bgvToggle">Disable</button>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
-                    <label style="font-size:14px; color:#ccc; font-family:'Arial Narrow','Arial',sans-serif;">Invert Duet</label>
-                    <button class="settings-btn" id="invertDuetBtn">Enable</button>
-                </div>
-                <div style="display: flex; justify-content: flex-end; margin-top: 4px;">
-                    <button class="settings-btn" id="resyncBtn">↻ Refresh Sync</button>
-                </div>
-            </div>
-            <div class="status-msg" id="statusMsg">drop TTML + audio to start</div>
+        <div class="drop-zone" id="audioDrop">
+            <span class="hint">⬇ AUDIO</span>
+            <span class="file-name" id="audioName">—</span>
+            <input type="file" accept="audio/*" id="audioInput" />
         </div>
     </div>
+    <div class="disclaimer">Make sure to turn off your dark reader</div>
+    <div class="brat-box-wrap" id="bratBox">
+        <div id="textDisplay"></div>
+        <div id="bgvDisplay"></div>
+    </div>
+    <div class="controls">
+        <div class="ctrl-row">
+            <button id="playBtn">▶ Play</button>
+            <input type="range" id="progressBar" min="0" max="1000" value="0" step="0.1" />
+            <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
+            <button class="settings-toggle" id="settingsToggle">⚙ Settings</button>
+            <button class="settings-btn" id="recordBtn" style="background:#d32f2f;border-color:#d32f2f;color:#fff;min-width:auto;padding:6px 16px;">⏺ Record</button>
+        </div>
+        <div class="settings-panel" id="settingsPanel">
+            <div class="setting-row">
+                <label>Font Scale</label>
+                <input type="range" id="fontScale" min="0.5" max="1.5" step="0.05" value="1.0">
+                <span id="fontScaleValue" style="min-width:30px; text-align:center; color:#fff;">1.0x</span>
+            </div>
+            <div class="setting-row">
+                <label>Text Align</label>
+                <select id="textAlign">
+                    <option value="justify">Justify</option>
+                    <option value="left">Left</option>
+                    <option value="center">Center</option>
+                    <option value="right">Right</option>
+                </select>
+            </div>
+            <div class="setting-row">
+                <label>BGV Mode</label>
+                <select id="bgvMode">
+                    <option value="invert">Invert</option>
+                    <option value="solid">Solid</option>
+                </select>
+            </div>
+            <div class="setting-row">
+                <label>BGV Size</label>
+                <input type="range" id="bgvScale" min="0.1" max="2.0" step="0.05" value="1.0">
+                <span id="bgvScaleValue" style="min-width:30px; text-align:center; color:#fff;">1.0x</span>
+            </div>
+            <div class="setting-row">
+                <label>BGV Align</label>
+                <select id="bgvAlign">
+                    <option value="justify">Justify</option>
+                    <option value="left">Left</option>
+                    <option value="center">Center</option>
+                    <option value="right">Right</option>
+                </select>
+            </div>
+            <div class="setting-row">
+                <label>Main Sync Mode</label>
+                <select id="mainSyncMode">
+                    <option value="word-by-word">Word-by-word</option>
+                    <option value="single-word">Single-word only</option>
+                </select>
+            </div>
+            <div class="setting-row">
+                <label>BGV Sync Mode</label>
+                <select id="bgvSyncMode">
+                    <option value="word-by-word">Word-by-word</option>
+                    <option value="single-word">Single-word only</option>
+                </select>
+            </div>
+            <div class="setting-row">
+                <label>TTML Offset</label>
+                <input type="range" id="ttmlOffset" min="-10" max="10" step="0.01" value="0">
+                <span id="ttmlOffsetValue" style="min-width:50px; text-align:center; color:#fff;">0.00s</span>
+                <button class="settings-btn" id="resetTtmlOffsetBtn" style="min-width:36px; padding:0 8px; font-size:16px; line-height:1.2;" title="Reset offset to 0.00s">↺</button>
+            </div>
+            <div class="setting-row">
+                <label>Render Speed</label>
+                <select id="renderSpeed">
+                    <option value="1" selected>1× (real‑time, single file)</option>
+                    <option value="2">2× (fast, separate files)</option>
+                    <option value="3">3× (faster, separate files)</option>
+                    <option value="4">4× (fastest, separate files)</option>
+                </select>
+            </div>
+            <div class="merge-note" id="mergeNote" style="display:none; margin-top:4px;">
+                <div class="merge-instruction">Open a terminal in the folder where the video and audio files were downloaded, then run:</div>
+                <code id="ffmpegCmd" style="display:block; word-break:break-all;">ffmpeg -i video.webm -itsoffset 0.1 -i audio.mp3 -filter:v "setpts=PTS*2,fps=30" -c:v libx264 -preset fast -crf 22 -c:a aac -b:a 192k -map 0:v -map 1:a merged.mp4</code>
+                <button class="copy-btn" id="copyCmdBtn">📋 Copy</button>
+                <span class="copy-feedback" id="copyFeedback">✓ Copied!</span>
+                <div style="margin-top:4px; color:#aaa; font-size:11px;">⚠️ Re‑encoding video – this may take a few minutes.</div>
+                <div style="margin-top:2px; color:#aaa; font-size:11px;">(Install FFmpeg from ffmpeg.org)</div>
+            </div>
+            <div class="setting-row">
+                <label>Video Quality</label>
+                <select id="videoQuality">
+                    <option value="high">High (548p, 30fps)</option>
+                    <option value="low">Low (274p, 24fps)</option>
+                </select>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+                <label style="font-size:14px; color:#ccc;">Enable BGV</label>
+                <button class="settings-btn" id="bgvToggle">Disable</button>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+                <label style="font-size:14px; color:#ccc;">Invert Duet</label>
+                <button class="settings-btn" id="invertDuetBtn">Enable</button>
+            </div>
+            <div style="display:flex; justify-content:flex-end; margin-top:4px;">
+                <button class="settings-btn" id="resyncBtn">↻ Refresh Sync</button>
+            </div>
+        </div>
+        <div class="status-msg" id="statusMsg">drop TTML + audio to start</div>
+    </div>
+</div>
 
-    <script>
-        // --------------------------------------------------------------
-        //  STATE & SETTINGS
-        // --------------------------------------------------------------
-        const state = {
-            lines: [],          
-            audio: null,
-            isPlaying: false,
-            currentTime: 0,
-            duration: 0,
-            animationId: null,
-            loaded: false,
-            settings: {
-                fontScale: 1.0,
-                textAlign: 'justify',
-                bgvMode: 'solid',          
-                bgvScale: 0.5,             
-                bgvAlign: 'center',        
-                bgvEnabled: true,
-                invertDuet: false,
-                mainSyncMode: 'word-by-word',
-                bgvSyncMode: 'single-word',
-                ttmlOffset: 0
-            }
-        };
+<script>
+//  UTILITY: sanitize filename
+function sanitizeName(name) {
+    let base = name.replace(/\.[^/.]+$/, '');
+    base = base.replace(/[,\s\[\]()'"]/g, '_');
+    base = base.replace(/[^a-zA-Z0-9_.-]/g, '');
+    base = base.replace(/_+/g, '_');
+    base = base.replace(/^_+|_+$/g, '');
+    return base || 'recording';
+}
 
-        const textDisplay = document.getElementById('textDisplay');
-        const bgvDisplay = document.getElementById('bgvDisplay');
-        const playBtn = document.getElementById('playBtn');
-        const progressBar = document.getElementById('progressBar');
-        const timeDisplay = document.getElementById('timeDisplay');
-        const statusMsg = document.getElementById('statusMsg');
-        const bratBox = document.getElementById('bratBox');
-        const ttmlDrop = document.getElementById('ttmlDrop');
-        const audioDrop = document.getElementById('audioDrop');
-        const ttmlInput = document.getElementById('ttmlInput');
-        const audioInput = document.getElementById('audioInput');
-        const settingsToggle = document.getElementById('settingsToggle');
-        const settingsPanel = document.getElementById('settingsPanel');
-        const fontScaleInput = document.getElementById('fontScale');
-        const fontScaleValue = document.getElementById('fontScaleValue');
-        const textAlignSelect = document.getElementById('textAlign');
-        const bgvModeSelect = document.getElementById('bgvMode');
-        const bgvScaleInput = document.getElementById('bgvScale');
-        const bgvScaleValue = document.getElementById('bgvScaleValue');
-        const bgvAlignSelect = document.getElementById('bgvAlign');
-        const bgvToggleBtn = document.getElementById('bgvToggle');
-        const invertDuetBtn = document.getElementById('invertDuetBtn');
-        const resyncBtn = document.getElementById('resyncBtn');
-        const mainSyncModeSelect = document.getElementById('mainSyncMode');
-        const bgvSyncModeSelect = document.getElementById('bgvSyncMode');
-        const ttmlOffsetInput = document.getElementById('ttmlOffset');
-        const ttmlOffsetValue = document.getElementById('ttmlOffsetValue');
-		const resetTtmlOffsetBtn = document.getElementById('resetTtmlOffsetBtn');
+//  STATE
+const state = {
+    lines: [],
+    audio: null,
+    audioBlob: null,
+    audioFileName: 'recording',
+    audioBaseName: 'recording',
+    audioFileExtension: 'mp3',
+    isPlaying: false,
+    currentTime: 0,
+    duration: 0,
+    animationId: null,
+    loaded: false,
+    settings: {
+        fontScale: 1.0,
+        textAlign: 'justify',
+        bgvMode: 'solid',
+        bgvScale: 0.5,
+        bgvAlign: 'center',
+        bgvEnabled: true,
+        invertDuet: false,
+        mainSyncMode: 'word-by-word',
+        bgvSyncMode: 'single-word',
+        ttmlOffset: 0,
+        videoQuality: 'high',
+        renderSpeed: 1
+    }
+};
 
-        function syncSettingsUI() {
-            fontScaleInput.value = state.settings.fontScale;
-            fontScaleValue.textContent = state.settings.fontScale.toFixed(2) + 'x';
-            textAlignSelect.value = state.settings.textAlign;
-            
-            bgvModeSelect.value = state.settings.bgvMode;
-            if (state.settings.bgvMode === 'solid') {
-                bratBox.classList.add('bgv-solid');
-            } else {
-                bratBox.classList.remove('bgv-solid');
-            }
+// DOM refs
+const $ = id => document.getElementById(id);
+const textDisplay = $('textDisplay');
+const bgvDisplay = $('bgvDisplay');
+const playBtn = $('playBtn');
+const progressBar = $('progressBar');
+const timeDisplay = $('timeDisplay');
+const statusMsg = $('statusMsg');
+const bratBox = $('bratBox');
+const ttmlDrop = $('ttmlDrop');
+const audioDrop = $('audioDrop');
+const ttmlInput = $('ttmlInput');
+const audioInput = $('audioInput');
+const settingsToggle = $('settingsToggle');
+const settingsPanel = $('settingsPanel');
+const fontScaleInput = $('fontScale');
+const fontScaleValue = $('fontScaleValue');
+const textAlignSelect = $('textAlign');
+const bgvModeSelect = $('bgvMode');
+const bgvScaleInput = $('bgvScale');
+const bgvScaleValue = $('bgvScaleValue');
+const bgvAlignSelect = $('bgvAlign');
+const bgvToggleBtn = $('bgvToggle');
+const invertDuetBtn = $('invertDuetBtn');
+const resyncBtn = $('resyncBtn');
+const mainSyncModeSelect = $('mainSyncMode');
+const bgvSyncModeSelect = $('bgvSyncMode');
+const ttmlOffsetInput = $('ttmlOffset');
+const ttmlOffsetValue = $('ttmlOffsetValue');
+const resetTtmlOffsetBtn = $('resetTtmlOffsetBtn');
+const renderSpeedSelect = $('renderSpeed');
+const videoQualitySelect = $('videoQuality');
+const recordBtn = $('recordBtn');
+const mergeNote = $('mergeNote');
+const ffmpegCmd = $('ffmpegCmd');
+const copyCmdBtn = $('copyCmdBtn');
+const copyFeedback = $('copyFeedback');
 
-            bgvScaleInput.value = state.settings.bgvScale;
-            bgvScaleValue.textContent = state.settings.bgvScale.toFixed(2) + 'x';
-            bgvAlignSelect.value = state.settings.bgvAlign;
-            
-            bgvDisplay.style.textAlign = state.settings.bgvAlign;
-            bgvDisplay.style.textAlignLast = state.settings.bgvAlign;
+//  UI SYNC
+function syncSettingsUI() {
+    fontScaleInput.value = state.settings.fontScale;
+    fontScaleValue.textContent = state.settings.fontScale.toFixed(2) + 'x';
+    textAlignSelect.value = state.settings.textAlign;
+    bgvModeSelect.value = state.settings.bgvMode;
+    if (state.settings.bgvMode === 'solid') bratBox.classList.add('bgv-solid');
+    else bratBox.classList.remove('bgv-solid');
+    bgvScaleInput.value = state.settings.bgvScale;
+    bgvScaleValue.textContent = state.settings.bgvScale.toFixed(2) + 'x';
+    bgvAlignSelect.value = state.settings.bgvAlign;
+    bgvDisplay.style.textAlign = state.settings.bgvAlign;
+    bgvDisplay.style.textAlignLast = state.settings.bgvAlign;
+    mainSyncModeSelect.value = state.settings.mainSyncMode;
+    bgvSyncModeSelect.value = state.settings.bgvSyncMode;
+    ttmlOffsetInput.value = state.settings.ttmlOffset;
+    ttmlOffsetValue.textContent = state.settings.ttmlOffset.toFixed(2) + 's';
+    renderSpeedSelect.value = state.settings.renderSpeed;
+    videoQualitySelect.value = state.settings.videoQuality;
+    bgvToggleBtn.textContent = state.settings.bgvEnabled ? 'Disable' : 'Enable';
+    bgvToggleBtn.classList.toggle('active', !state.settings.bgvEnabled);
+    invertDuetBtn.textContent = state.settings.invertDuet ? 'Disable' : 'Enable';
+    invertDuetBtn.classList.toggle('active', state.settings.invertDuet);
+    if (state.settings.invertDuet) bratBox.classList.add('duet-inverted');
+    else bratBox.classList.remove('duet-inverted');
+    updateMergeNote();
+}
 
-            mainSyncModeSelect.value = state.settings.mainSyncMode;
-            bgvSyncModeSelect.value = state.settings.bgvSyncMode;
+function updateMergeNote() {
+    const speed = state.settings.renderSpeed;
+    const base = state.audioBaseName;
+    const ext = state.audioFileExtension;
+    if (speed === 1) {
+        mergeNote.style.display = 'none';
+    } else {
+        mergeNote.style.display = 'block';
+        const baseFps = state.settings.videoQuality === 'high' ? 30 : 24;
+        const filter = `setpts=PTS*${speed},fps=${baseFps}`;
+        ffmpegCmd.textContent = `ffmpeg -i ${base}_video.webm -itsoffset 0.1 -i ${base}_audio.${ext} -filter:v "${filter}" -c:v libx264 -preset fast -crf 22 -c:a aac -b:a 192k -map 0:v -map 1:a ${base}_merged.mp4`;
+    }
+}
 
-            ttmlOffsetInput.value = state.settings.ttmlOffset;
-            ttmlOffsetValue.textContent = state.settings.ttmlOffset.toFixed(2) + 's';
+// Copy command
+copyCmdBtn.addEventListener('click', () => {
+    const cmd = ffmpegCmd.textContent;
+    navigator.clipboard.writeText(cmd).then(() => {
+        copyFeedback.classList.add('show');
+        setTimeout(() => copyFeedback.classList.remove('show'), 2000);
+    }).catch(() => {
+        const range = document.createRange();
+        range.selectNode(ffmpegCmd);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        document.execCommand('copy');
+        window.getSelection().removeAllRanges();
+        copyFeedback.classList.add('show');
+        setTimeout(() => copyFeedback.classList.remove('show'), 2000);
+    });
+});
 
-            bgvToggleBtn.textContent = state.settings.bgvEnabled ? 'Disable' : 'Enable';
-            bgvToggleBtn.classList.toggle('active', !state.settings.bgvEnabled);
+//  SETTINGS HANDLERS
+settingsToggle.addEventListener('click', () => settingsPanel.classList.toggle('open'));
 
-            invertDuetBtn.textContent = state.settings.invertDuet ? 'Disable' : 'Enable';
-            invertDuetBtn.classList.toggle('active', state.settings.invertDuet);
-            if (state.settings.invertDuet) {
-                bratBox.classList.add('duet-inverted');
-            } else {
-                bratBox.classList.remove('duet-inverted');
-            }
+fontScaleInput.addEventListener('input', (e) => {
+    state.settings.fontScale = parseFloat(e.target.value);
+    fontScaleValue.textContent = state.settings.fontScale.toFixed(2) + 'x';
+    if (state.lines.length && state.audio) renderLyrics(state.currentTime);
+});
+textAlignSelect.addEventListener('change', (e) => {
+    state.settings.textAlign = e.target.value;
+    textDisplay.style.textAlign = state.settings.textAlign;
+    textDisplay.style.textAlignLast = state.settings.textAlign;
+});
+bgvModeSelect.addEventListener('change', (e) => {
+    state.settings.bgvMode = e.target.value;
+    if (state.settings.bgvMode === 'solid') bratBox.classList.add('bgv-solid');
+    else bratBox.classList.remove('bgv-solid');
+    if (state.lines.length && state.audio) renderLyrics(state.currentTime);
+});
+bgvScaleInput.addEventListener('input', (e) => {
+    state.settings.bgvScale = parseFloat(e.target.value);
+    bgvScaleValue.textContent = state.settings.bgvScale.toFixed(2) + 'x';
+    if (state.lines.length && state.audio) renderLyrics(state.currentTime);
+});
+bgvAlignSelect.addEventListener('change', (e) => {
+    state.settings.bgvAlign = e.target.value;
+    bgvDisplay.style.textAlign = state.settings.bgvAlign;
+    bgvDisplay.style.textAlignLast = state.settings.bgvAlign;
+});
+mainSyncModeSelect.addEventListener('change', (e) => {
+    state.settings.mainSyncMode = e.target.value;
+    if (state.lines.length && state.audio) renderLyrics(state.currentTime);
+});
+bgvSyncModeSelect.addEventListener('change', (e) => {
+    state.settings.bgvSyncMode = e.target.value;
+    if (state.lines.length && state.audio) renderLyrics(state.currentTime);
+});
+ttmlOffsetInput.addEventListener('input', (e) => {
+    state.settings.ttmlOffset = parseFloat(e.target.value);
+    ttmlOffsetValue.textContent = state.settings.ttmlOffset.toFixed(2) + 's';
+    if (state.lines.length && state.audio) renderLyrics(state.currentTime);
+});
+resetTtmlOffsetBtn.addEventListener('click', () => {
+    state.settings.ttmlOffset = 0;
+    ttmlOffsetInput.value = 0;
+    ttmlOffsetValue.textContent = '0.00s';
+    if (state.lines.length && state.audio) renderLyrics(state.currentTime);
+});
+renderSpeedSelect.addEventListener('change', (e) => {
+    state.settings.renderSpeed = parseFloat(e.target.value);
+    updateMergeNote();
+});
+videoQualitySelect.addEventListener('change', (e) => {
+    state.settings.videoQuality = e.target.value;
+    updateMergeNote();
+});
+bgvToggleBtn.addEventListener('click', () => {
+    state.settings.bgvEnabled = !state.settings.bgvEnabled;
+    bgvToggleBtn.textContent = state.settings.bgvEnabled ? 'Disable' : 'Enable';
+    bgvToggleBtn.classList.toggle('active', !state.settings.bgvEnabled);
+    if (state.lines.length && state.audio) renderLyrics(state.currentTime);
+});
+invertDuetBtn.addEventListener('click', () => {
+    state.settings.invertDuet = !state.settings.invertDuet;
+    invertDuetBtn.textContent = state.settings.invertDuet ? 'Disable' : 'Enable';
+    invertDuetBtn.classList.toggle('active', state.settings.invertDuet);
+    if (state.settings.invertDuet) bratBox.classList.add('duet-inverted');
+    else bratBox.classList.remove('duet-inverted');
+    if (state.lines.length && state.audio) renderLyrics(state.currentTime);
+});
+resyncBtn.addEventListener('click', () => {
+    if (!state.audio || !state.loaded) {
+        statusMsg.textContent = '⏳ Wait for TTML + audio to load first!';
+        return;
+    }
+    const currentAudioTime = state.audio.currentTime;
+    virtualTime = currentAudioTime;
+    lastRealTime = performance.now() / 1000;
+    renderLyrics(currentAudioTime);
+    if (state.isPlaying) {
+        if (!state.animationId) {
+            startSync();
         }
+    }
+    statusMsg.textContent = '✅ Sync refreshed';
+});
 
-        // --------------------------------------------------------------
-        //  SETTINGS HANDLERS
-        // --------------------------------------------------------------
-        settingsToggle.addEventListener('click', () => {
-            settingsPanel.classList.toggle('open');
-        });
+//  TTML PARSER
+function parseTime(str) {
+    if (!str) return null;
+    str = str.trim();
+    if (/^\d+(\.\d+)?$/.test(str)) return parseFloat(str);
+    const parts = str.split(':');
+    if (parts.length === 3) {
+        return (parseFloat(parts[0]) || 0) * 3600 +
+               (parseFloat(parts[1]) || 0) * 60 +
+               (parseFloat(parts[2]) || 0);
+    } else if (parts.length === 2) {
+        return (parseFloat(parts[0]) || 0) * 60 + (parseFloat(parts[1]) || 0);
+    }
+    return parseFloat(str) || 0;
+}
 
-        fontScaleInput.addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            state.settings.fontScale = val;
-            fontScaleValue.textContent = val.toFixed(2) + 'x';
-            if(state.lines.length && state.audio) renderLyrics(state.currentTime);
-        });
-
-        textAlignSelect.addEventListener('change', (e) => {
-            state.settings.textAlign = e.target.value;
-            textDisplay.style.textAlign = state.settings.textAlign;
-            textDisplay.style.textAlignLast = state.settings.textAlign;
-        });
-
-        bgvModeSelect.addEventListener('change', (e) => {
-            state.settings.bgvMode = e.target.value;
-            if (state.settings.bgvMode === 'solid') {
-                bratBox.classList.add('bgv-solid');
-            } else {
-                bratBox.classList.remove('bgv-solid');
-            }
-            if(state.lines.length && state.audio) renderLyrics(state.currentTime);
-        });
-
-        bgvScaleInput.addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            state.settings.bgvScale = val;
-            bgvScaleValue.textContent = val.toFixed(2) + 'x';
-            if(state.lines.length && state.audio) renderLyrics(state.currentTime);
-        });
-
-        bgvAlignSelect.addEventListener('change', (e) => {
-            state.settings.bgvAlign = e.target.value;
-            bgvDisplay.style.textAlign = state.settings.bgvAlign;
-            bgvDisplay.style.textAlignLast = state.settings.bgvAlign;
-        });
-
-        mainSyncModeSelect.addEventListener('change', (e) => {
-            state.settings.mainSyncMode = e.target.value;
-            if(state.lines.length && state.audio) renderLyrics(state.currentTime);
-        });
-
-        bgvSyncModeSelect.addEventListener('change', (e) => {
-            state.settings.bgvSyncMode = e.target.value;
-            if(state.lines.length && state.audio) renderLyrics(state.currentTime);
-        });
-		
-        ttmlOffsetInput.addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            state.settings.ttmlOffset = val;
-            ttmlOffsetValue.textContent = val.toFixed(2) + 's';
-            if(state.lines.length && state.audio) renderLyrics(state.currentTime);
-        });
-		
-		resetTtmlOffsetBtn.addEventListener('click', () => {
-			state.settings.ttmlOffset = 0;
-			ttmlOffsetInput.value = 0;
-			ttmlOffsetValue.textContent = '0.00s';
-			if(state.lines.length && state.audio) renderLyrics(state.currentTime);
-		});		
-
-        bgvToggleBtn.addEventListener('click', () => {
-            state.settings.bgvEnabled = !state.settings.bgvEnabled;
-            bgvToggleBtn.textContent = state.settings.bgvEnabled ? 'Disable' : 'Enable';
-            bgvToggleBtn.classList.toggle('active', !state.settings.bgvEnabled);
-            if(state.lines.length && state.audio) renderLyrics(state.currentTime);
-        });
-
-        invertDuetBtn.addEventListener('click', () => {
-            state.settings.invertDuet = !state.settings.invertDuet;
-            invertDuetBtn.textContent = state.settings.invertDuet ? 'Disable' : 'Enable';
-            invertDuetBtn.classList.toggle('active', state.settings.invertDuet);
-            if (state.settings.invertDuet) {
-                bratBox.classList.add('duet-inverted');
-            } else {
-                bratBox.classList.remove('duet-inverted');
-            }
-            if(state.lines.length && state.audio) renderLyrics(state.currentTime);
-        });
-
-        resyncBtn.addEventListener('click', () => {
-            if (!state.audio || !state.loaded) {
-                statusMsg.textContent = '⏳ Wait for TTML + audio to load first!';
-                return;
-            }
-            if (state.isPlaying) {
-                if (state.animationId) cancelAnimationFrame(state.animationId);
-                state.animationId = null;
-                statusMsg.textContent = '🔄 Refreshing sync...';
-                startSync();
-            } else {
-                renderLyrics(state.audio.currentTime);
-                statusMsg.textContent = '✅ Sync refreshed';
-            }
-        });
-
-        // --------------------------------------------------------------
-        //  TTML PARSER
-        // --------------------------------------------------------------
-        function parseTime(str) {
-            if (!str) return null;
-            str = str.trim();
-            if (/^\d+(\.\d+)?$/.test(str)) return parseFloat(str);
-            const parts = str.split(':');
-            if (parts.length === 3) {
-                return (parseFloat(parts[0]) || 0) * 3600 +
-                       (parseFloat(parts[1]) || 0) * 60 +
-                       (parseFloat(parts[2]) || 0);
-            } else if (parts.length === 2) {
-                return (parseFloat(parts[0]) || 0) * 60 + (parseFloat(parts[1]) || 0);
-            }
-            return parseFloat(str) || 0;
-        }
-
-        function parseTTML(xmlStr) {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(xmlStr, 'text/xml');
-            const pEls = doc.querySelectorAll('p');
-            if (!pEls.length) throw new Error('No <p> elements found in TTML.');
-
-            const lines = [];
-            for (const p of pEls) {
-                const agent = p.getAttribute('ttm:agent') || p.getAttribute('agent') || null;
-                const childNodes = p.childNodes;
-                const words = [];
-                const bgvWords = [];
-                let spaceCount = 0; 
-
-                for (let i = 0; i < childNodes.length; i++) {
-                    const node = childNodes[i];
-
-                    if (node.nodeType === Node.TEXT_NODE) {
-                        const text = node.textContent;
-                        if (text.trim() === '' && text.includes(' ')) {
-                            spaceCount = text.replace(/\n/g, '').length; 
-                        }
-                    } else if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'span') {
-                        const role = node.getAttribute('ttm:role') || node.getAttribute('role');
-
-                        if (role === 'x-bg') {
-                            let bgvSpaceCount = spaceCount;
-                            spaceCount = 0; 
-                            
-                            for (const bgvChild of node.childNodes) {
-                                if (bgvChild.nodeType === Node.TEXT_NODE) {
-                                    const text = bgvChild.textContent;
-                                    if (text.trim() === '' && text.includes(' ')) {
-                                        bgvSpaceCount = text.replace(/\n/g, '').length;
-                                    }
-                                } else if (bgvChild.nodeType === Node.ELEMENT_NODE && bgvChild.tagName === 'span') {
-                                    let rawText = bgvChild.textContent;
-                                    rawText = rawText.replace(/[\(\)\[\]]/g, '');
-                                    const begin = bgvChild.getAttribute('begin') || '';
-                                    const end = bgvChild.getAttribute('end') || '';
-                                    const start = parseTime(begin);
-                                    const endTime = parseTime(end);
-                                    if (start === null || endTime === null) continue;
-
-                                    let finalText = rawText;
-                                    if (bgvSpaceCount > 0) {
-                                        finalText = ' '.repeat(bgvSpaceCount) + rawText;
-                                        bgvSpaceCount = 0; 
-                                    }
-                                    bgvWords.push({ rawText: finalText, start, end: endTime });
-                                }
+function parseTTML(xmlStr) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlStr, 'text/xml');
+    const pEls = doc.querySelectorAll('p');
+    if (!pEls.length) throw new Error('No <p> elements found in TTML.');
+    const lines = [];
+    for (const p of pEls) {
+        const agent = p.getAttribute('ttm:agent') || p.getAttribute('agent') || null;
+        const childNodes = p.childNodes;
+        const words = [];
+        const bgvWords = [];
+        let spaceCount = 0;
+        for (let i = 0; i < childNodes.length; i++) {
+            const node = childNodes[i];
+            if (node.nodeType === Node.TEXT_NODE) {
+                const text = node.textContent;
+                if (text.trim() === '' && text.includes(' ')) {
+                    spaceCount = text.replace(/\n/g, '').length;
+                }
+            } else if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'span') {
+                const role = node.getAttribute('ttm:role') || node.getAttribute('role');
+                if (role === 'x-bg') {
+                    let bgvSpaceCount = spaceCount;
+                    spaceCount = 0;
+                    for (const bgvChild of node.childNodes) {
+                        if (bgvChild.nodeType === Node.TEXT_NODE) {
+                            const text = bgvChild.textContent;
+                            if (text.trim() === '' && text.includes(' ')) {
+                                bgvSpaceCount = text.replace(/\n/g, '').length;
                             }
-                        } else {
-                            const rawText = node.textContent;
-                            const begin = node.getAttribute('begin') || '';
-                            const end = node.getAttribute('end') || '';
+                        } else if (bgvChild.nodeType === Node.ELEMENT_NODE && bgvChild.tagName === 'span') {
+                            let rawText = bgvChild.textContent;
+                            rawText = rawText.replace(/[\(\)\[\]]/g, '');
+                            const begin = bgvChild.getAttribute('begin') || '';
+                            const end = bgvChild.getAttribute('end') || '';
                             const start = parseTime(begin);
                             const endTime = parseTime(end);
                             if (start === null || endTime === null) continue;
-
                             let finalText = rawText;
-                            if (spaceCount > 0) {
-                                finalText = ' '.repeat(spaceCount) + rawText;
-                                spaceCount = 0; 
+                            if (bgvSpaceCount > 0) {
+                                finalText = ' '.repeat(bgvSpaceCount) + rawText;
+                                bgvSpaceCount = 0;
                             }
-                            words.push({ rawText: finalText, start, end: endTime });
+                            bgvWords.push({ rawText: finalText, start, end: endTime });
                         }
                     }
-                }
-
-                if (words.length || bgvWords.length) {
-                    lines.push({ agent, words, bgvWords });
-                }
-            }
-
-            if (!lines.length) throw new Error('No words parsed from TTML.');
-            return lines;
-        }
-
-        // --------------------------------------------------------------
-        //  TEXT FITTING – HARDLOCKED TO 460px + SETTINGS SCALE
-        // --------------------------------------------------------------
-        function fitText(container, textContent, scaleModifier = 1.0) {
-            const TARGET_WIDTH = 460; 
-            const TARGET_HEIGHT = 460;
-            if (TARGET_WIDTH <= 0 || TARGET_HEIGHT <= 0) return 16;
-
-            container.innerHTML = textContent;
-
-            let low = 8, high = 340, best = 16;
-
-            const clone = container.cloneNode(true);
-            clone.style.position = 'absolute';
-            clone.style.visibility = 'hidden';
-            clone.style.width = TARGET_WIDTH + 'px';
-            clone.style.height = TARGET_HEIGHT + 'px';
-            clone.style.padding = '0px';
-            clone.style.boxSizing = 'border-box';
-            clone.style.overflow = 'hidden';
-            clone.style.filter = 'none';
-            clone.style.transition = 'none';
-            clone.style.textAlign = 'left';
-            clone.style.textAlignLast = 'auto';
-            clone.style.transform = 'none';
-            clone.style.letterSpacing = '0px';
-            document.body.appendChild(clone);
-
-            const measure = (size) => {
-                clone.style.fontSize = size + 'px';
-                const child = clone.firstElementChild;
-                if (child) {
-                    child.style.display = 'inline-block';
-                    child.style.width = 'auto';
-                    child.style.maxWidth = 'none';
-                    child.style.whiteSpace = 'normal';
-                }
-                const rect = clone.getBoundingClientRect();
-                const padX = parseFloat(getComputedStyle(clone).paddingLeft) +
-                            parseFloat(getComputedStyle(clone).paddingRight);
-                const padY = parseFloat(getComputedStyle(clone).paddingTop) +
-                            parseFloat(getComputedStyle(clone).paddingBottom);
-                const availW = rect.width - padX;
-                const availH = rect.height - padY;
-                const contentRect = child ? child.getBoundingClientRect() : rect;
-                return { w: contentRect.width, h: contentRect.height, availW, availH };
-            };
-
-            for (let iter = 0; iter < 40; iter++) {
-                const mid = (low + high) >> 1;
-                const m = measure(mid);
-                if (m.w <= m.availW - 4 && m.h <= m.availH - 4) {
-                    best = mid;
-                    low = mid + 1;
                 } else {
-                    high = mid - 1;
+                    const rawText = node.textContent;
+                    const begin = node.getAttribute('begin') || '';
+                    const end = node.getAttribute('end') || '';
+                    const start = parseTime(begin);
+                    const endTime = parseTime(end);
+                    if (start === null || endTime === null) continue;
+                    let finalText = rawText;
+                    if (spaceCount > 0) {
+                        finalText = ' '.repeat(spaceCount) + rawText;
+                        spaceCount = 0;
+                    }
+                    words.push({ rawText: finalText, start, end: endTime });
                 }
-                if (low > high) break;
             }
-
-            document.body.removeChild(clone);
-            
-            const finalSize = best * scaleModifier;
-            container.style.fontSize = finalSize + 'px';
-            return finalSize;
         }
+        if (words.length || bgvWords.length) {
+            lines.push({ agent, words, bgvWords });
+        }
+    }
+    if (!lines.length) throw new Error('No words parsed from TTML.');
+    return lines;
+}
 
-        // --------------------------------------------------------------
-        //  RENDER
-        // --------------------------------------------------------------
-        function renderLyrics(time) {
-            // Apply the TTML Offset straight away
-            const adjustedTime = time + state.settings.ttmlOffset;
+//  TEXT FITTING
+function fitText(container, textContent, scaleModifier = 1.0) {
+    const TARGET_WIDTH = 460;
+    const TARGET_HEIGHT = 460;
+    if (TARGET_WIDTH <= 0 || TARGET_HEIGHT <= 0) return 16;
+    container.innerHTML = textContent;
+    let low = 8, high = 340, best = 16;
+    const clone = container.cloneNode(true);
+    clone.style.position = 'absolute';
+    clone.style.visibility = 'hidden';
+    clone.style.width = TARGET_WIDTH + 'px';
+    clone.style.height = TARGET_HEIGHT + 'px';
+    clone.style.padding = '0px';
+    clone.style.boxSizing = 'border-box';
+    clone.style.overflow = 'hidden';
+    clone.style.filter = 'none';
+    clone.style.transition = 'none';
+    clone.style.textAlign = 'left';
+    clone.style.textAlignLast = 'auto';
+    clone.style.transform = 'none';
+    clone.style.letterSpacing = '0px';
+    document.body.appendChild(clone);
+    const measure = (size) => {
+        clone.style.fontSize = size + 'px';
+        const child = clone.firstElementChild;
+        if (child) {
+            child.style.display = 'inline-block';
+            child.style.width = 'auto';
+            child.style.maxWidth = 'none';
+            child.style.whiteSpace = 'normal';
+        }
+        const rect = clone.getBoundingClientRect();
+        const padX = parseFloat(getComputedStyle(clone).paddingLeft) +
+                    parseFloat(getComputedStyle(clone).paddingRight);
+        const padY = parseFloat(getComputedStyle(clone).paddingTop) +
+                    parseFloat(getComputedStyle(clone).paddingBottom);
+        const availW = rect.width - padX;
+        const availH = rect.height - padY;
+        const contentRect = child ? child.getBoundingClientRect() : rect;
+        return { w: contentRect.width, h: contentRect.height, availW, availH };
+    };
+    for (let iter = 0; iter < 40; iter++) {
+        const mid = (low + high) >> 1;
+        const m = measure(mid);
+        if (m.w <= m.availW - 4 && m.h <= m.availH - 4) {
+            best = mid;
+            low = mid + 1;
+        } else {
+            high = mid - 1;
+        }
+        if (low > high) break;
+    }
+    document.body.removeChild(clone);
+    const finalSize = best * scaleModifier;
+    container.style.fontSize = finalSize + 'px';
+    return finalSize;
+}
 
-            const lines = state.lines;
-            if (!lines.length) {
-                textDisplay.innerHTML = '';
-                bgvDisplay.innerHTML = '';
-                bratBox.classList.remove('duet-mode'); 
-                return;
+//  RENDER LYRICS
+function renderLyrics(time) {
+    const adjustedTime = time + state.settings.ttmlOffset;
+    const lines = state.lines;
+    if (!lines.length) {
+        textDisplay.innerHTML = '';
+        bgvDisplay.innerHTML = '';
+        bratBox.classList.remove('duet-mode');
+        return;
+    }
+    // --- MAIN VOCALS ---
+    let currentLineIdx = -1;
+    for (let i = 0; i < lines.length; i++) {
+        if (lines[i].words.length && lines[i].words[0].start <= adjustedTime + 0.001) {
+            currentLineIdx = i;
+        } else {
+            break;
+        }
+    }
+    if (currentLineIdx === -1) {
+        textDisplay.innerHTML = '';
+        bratBox.classList.remove('duet-mode');
+    } else {
+        const line = lines[currentLineIdx];
+        if (line.agent && line.agent.includes('v2')) {
+            bratBox.classList.add('duet-mode');
+        } else {
+            bratBox.classList.remove('duet-mode');
+        }
+        let visibleWords = [];
+        if (state.settings.mainSyncMode === 'single-word') {
+            for (const w of line.words) {
+                if (w.start <= adjustedTime + 0.001 && w.end > adjustedTime) {
+                    visibleWords = [w.rawText];
+                    break;
+                }
             }
-
-            let currentLineIdx = -1;
-            for (let i = 0; i < lines.length; i++) {
-                if (lines[i].words.length && lines[i].words[0].start <= adjustedTime + 0.001) {
-                    currentLineIdx = i;
+        } else {
+            for (const w of line.words) {
+                if (w.start <= adjustedTime + 0.001) {
+                    visibleWords.push(w.rawText);
                 } else {
                     break;
                 }
             }
-
-            if (currentLineIdx === -1) {
-                textDisplay.innerHTML = '';
-                bratBox.classList.remove('duet-mode');
-            } else {
-                const line = lines[currentLineIdx];
-                if (line.agent && line.agent.includes('v2')) {
-                    bratBox.classList.add('duet-mode');
-                } else {
-                    bratBox.classList.remove('duet-mode');
-                }
-
-                // --- 1. MAIN VOCALS ---
-                let visibleWords = [];
-
-                if (state.settings.mainSyncMode === 'single-word') {
-                    for (const w of line.words) {
-                        if (w.start <= adjustedTime + 0.001 && w.end > adjustedTime) {
-                            visibleWords = [w.rawText];
-                            break;
-                        }
-                    }
-                } else {
-                    for (const w of line.words) {
-                        if (w.start <= adjustedTime + 0.001) {
-                            visibleWords.push(w.rawText);
-                        } else {
-                            break;
-                        }
-                    }
-                }
-
-                if (visibleWords.length) {
-                    const lineText = visibleWords.join('');
-                    const escaped = lineText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                    const html = `<span class="line-wrap">${escaped}</span>`;
-                    textDisplay.innerHTML = html;
-                    fitText(textDisplay, html, state.settings.fontScale);
-                } else {
-                    textDisplay.innerHTML = '';
-                }
+        }
+        if (visibleWords.length) {
+            let lineText = visibleWords.join('');
+            let escaped = lineText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            escaped = escaped.replace(/(\S+\s?—)/g, '<span style="white-space:nowrap">$1</span>');
+            const html = `<span class="line-wrap">${escaped}</span>`;
+            textDisplay.innerHTML = html;
+            fitText(textDisplay, html, state.settings.fontScale);
+        } else {
+            textDisplay.innerHTML = '';
+        }
+    }
+    // --- BACKGROUND VOCALS ---
+    if (state.settings.bgvEnabled) {
+        let currentBgvLineIdx = -1;
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].bgvWords.length && lines[i].bgvWords[0].start <= adjustedTime + 0.001) {
+                currentBgvLineIdx = i;
             }
-
-            // --- 2. BACKGROUND VOCALS ---
-            if (state.settings.bgvEnabled) {
-                let currentBgvLineIdx = -1;
-                for (let i = 0; i < lines.length; i++) {
-                    if (lines[i].bgvWords.length && lines[i].bgvWords[0].start <= adjustedTime + 0.001) {
-                        currentBgvLineIdx = i;
+        }
+        if (currentBgvLineIdx !== -1) {
+            const bgvLine = lines[currentBgvLineIdx];
+            const lastWord = bgvLine.bgvWords[bgvLine.bgvWords.length - 1];
+            if (adjustedTime <= lastWord.end) {
+                let visibleBgvWords = [];
+                if (state.settings.bgvSyncMode === 'single-word') {
+                    for (const w of bgvLine.bgvWords) {
+                        if (w.start <= adjustedTime + 0.001 && w.end > adjustedTime) {
+                            visibleBgvWords = [w.rawText];
+                            break;
+                        }
+                    }
+                } else {
+                    for (const w of bgvLine.bgvWords) {
+                        if (w.start <= adjustedTime + 0.001) {
+                            visibleBgvWords.push(w.rawText);
+                        } else {
+                            break;
+                        }
                     }
                 }
-
-                if (currentBgvLineIdx !== -1) {
-                    const bgvLine = lines[currentBgvLineIdx];
-                    const lastWord = bgvLine.bgvWords[bgvLine.bgvWords.length - 1];
-
-                    if (adjustedTime <= lastWord.end) {
-                        let visibleBgvWords = [];
-
-                        if (state.settings.bgvSyncMode === 'single-word') {
-                            for (const w of bgvLine.bgvWords) {
-                                if (w.start <= adjustedTime + 0.001 && w.end > adjustedTime) {
-                                    visibleBgvWords = [w.rawText];
-                                    break;
-                                }
-                            }
-                        } else {
-                            for (const w of bgvLine.bgvWords) {
-                                if (w.start <= adjustedTime + 0.001) {
-                                    visibleBgvWords.push(w.rawText);
-                                } else {
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (visibleBgvWords.length) {
-                            const bgvText = visibleBgvWords.join('');
-                            const escapedBgv = bgvText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                            const htmlBgv = `<span class="line-wrap">${escapedBgv}</span>`;
-                            bgvDisplay.innerHTML = htmlBgv;
-                            fitText(bgvDisplay, htmlBgv, state.settings.bgvScale);
-                        } else {
-                            bgvDisplay.innerHTML = '';
-                        }
-                    } else {
-                        bgvDisplay.innerHTML = '';
-                    }
+                if (visibleBgvWords.length) {
+                    let bgvText = visibleBgvWords.join('');
+                    let escapedBgv = bgvText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    escapedBgv = escapedBgv.replace(/(\S+\s?—)/g, '<span style="white-space:nowrap">$1</span>');
+                    const htmlBgv = `<span class="line-wrap">${escapedBgv}</span>`;
+                    bgvDisplay.innerHTML = htmlBgv;
+                    fitText(bgvDisplay, htmlBgv, state.settings.bgvScale);
                 } else {
                     bgvDisplay.innerHTML = '';
                 }
             } else {
                 bgvDisplay.innerHTML = '';
             }
+        } else {
+            bgvDisplay.innerHTML = '';
         }
+    } else {
+        bgvDisplay.innerHTML = '';
+    }
+}
 
-        // --------------------------------------------------------------
-        //  SYNC LOOP
-        // --------------------------------------------------------------
-        function syncLoop() {
-            if (!state.audio || !state.loaded) {
-                state.animationId = null;
-                return;
-            }
+//  SYNC LOOP
+let virtualTime = 0;
+let lastRealTime = 0;
+let isRecordingFast = false;
 
-            const audio = state.audio;
-            const t = audio.currentTime;
-            state.currentTime = t;
+function syncLoop() {
+    if (!state.audio || !state.loaded) {
+        state.animationId = null;
+        return;
+    }
+    const audio = state.audio;
+    let t;
+    if (isRecordingFast) {
+        const now = performance.now() / 1000;
+        if (lastRealTime === 0) lastRealTime = now;
+        const delta = now - lastRealTime;
+        lastRealTime = now;
+        virtualTime += delta * state.settings.renderSpeed;
+        t = virtualTime;
+        if (t > state.duration) t = state.duration;
+    } else {
+        t = audio.currentTime;
+        virtualTime = t;
+        lastRealTime = performance.now() / 1000;
+    }
+    state.currentTime = t;
+    if (state.duration > 0) {
+        progressBar.value = (t / state.duration) * 1000;
+    }
+    timeDisplay.textContent = formatTime(t) + ' / ' + formatTime(state.duration);
+    renderLyrics(t);
 
-            if (state.duration > 0) {
-                progressBar.value = (t / state.duration) * 1000;
-            }
-            timeDisplay.textContent = formatTime(t) + ' / ' + formatTime(state.duration);
+    if (state.isPlaying && !audio.paused) {
+        state.animationId = requestAnimationFrame(syncLoop);
+    } else {
+        if (audio.paused && state.isPlaying) {
+            state.isPlaying = false;
+            playBtn.textContent = '▶ Play';
+        }
+        if (t >= state.duration) {
+            state.isPlaying = false;
+            playBtn.textContent = '▶ Play';
+            progressBar.value = 1000;
+            renderLyrics(state.duration);
+        }
+        state.animationId = null;
+    }
+}
 
-            renderLyrics(t);
+function startSync() {
+    if (state.animationId) cancelAnimationFrame(state.animationId);
+    state.animationId = requestAnimationFrame(syncLoop);
+}
 
-            if (state.isPlaying && !audio.paused) {
-                state.animationId = requestAnimationFrame(syncLoop);
+//  RECORDING – video only for speed > 1, combined for speed 1
+let recorder = null;
+let isRecording = false;
+let recordChunks = [];
+let combinedStream = null;
+
+function finalizeRecording(quality) {
+    isRecording = false;
+    state.isPlaying = false;
+    playBtn.textContent = '▶ Play';
+    recordBtn.textContent = '⏺ Record';
+    recordBtn.disabled = false;
+    playBtn.disabled = false;
+    progressBar.disabled = false;
+    isRecordingFast = false;
+
+    if (state.audio) {
+        state.audio.playbackRate = 1;
+        state.audio.volume = 1;
+        state.audio.onended = null;
+    }
+    if (state.animationId) {
+        cancelAnimationFrame(state.animationId);
+        state.animationId = null;
+    }
+    if (!state.audio.paused) state.audio.pause();
+
+    if (combinedStream) {
+        combinedStream.getTracks().forEach(t => t.stop());
+        combinedStream = null;
+    }
+    if (recorder && recorder.state === 'recording') {
+        recorder.stop();
+    }
+
+    const speed = state.settings.renderSpeed;
+    const base = state.audioBaseName;
+    const ext = state.audioFileExtension;
+
+    if (speed === 1) {
+        // Fix duration for 1x recording
+        if (recordChunks.length === 0) {
+            statusMsg.textContent = '⚠️ No data recorded.';
+            recorder = null;
+            recordChunks = [];
+            return;
+        }
+        const rawBlob = new Blob(recordChunks, { type: recorder ? recorder.mimeType : 'video/webm' });
+        const durationMs = state.duration * 1000;
+        if (typeof ysFixWebmDuration === 'function') {
+            statusMsg.textContent = '⏳ Fixing video duration...';
+            ysFixWebmDuration(rawBlob, durationMs, function(fixedBlob) {
+                const url = URL.createObjectURL(fixedBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${base}_${quality}.webm`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 5000);
+                statusMsg.textContent = `✅ Video with audio saved as ${base}_${quality}.webm`;
+            });
+        } else {
+            // fallback
+            const url = URL.createObjectURL(rawBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${base}_${quality}.webm`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 5000);
+            statusMsg.textContent = `✅ Video saved (duration may not be indexed) as ${base}_${quality}.webm`;
+        }
+        recorder = null;
+        recordChunks = [];
+        return;
+    }
+
+    // Speed > 1: video only
+    if (recordChunks.length === 0) {
+        statusMsg.textContent = '⚠️ No video data recorded.';
+        recorder = null;
+        recordChunks = [];
+        return;
+    }
+
+    const rawVideoBlob = new Blob(recordChunks, { type: recorder ? recorder.mimeType : 'video/webm' });
+    const durationMs = state.duration * 1000;
+
+    if (typeof ysFixWebmDuration === 'function') {
+        statusMsg.textContent = '⏳ Fixing video duration...';
+        ysFixWebmDuration(rawVideoBlob, durationMs, function(fixedVideoBlob) {
+            const videoUrl = URL.createObjectURL(fixedVideoBlob);
+            const vA = document.createElement('a');
+            vA.href = videoUrl;
+            vA.download = `${base}_video.webm`;
+            document.body.appendChild(vA);
+            vA.click();
+            document.body.removeChild(vA);
+
+            if (state.audioBlob) {
+                const audioUrl = URL.createObjectURL(state.audioBlob);
+                const aA = document.createElement('a');
+                aA.href = audioUrl;
+                aA.download = `${base}_audio.${ext}`;
+                document.body.appendChild(aA);
+                aA.click();
+                document.body.removeChild(aA);
+                setTimeout(() => {
+                    URL.revokeObjectURL(videoUrl);
+                    URL.revokeObjectURL(audioUrl);
+                }, 5000);
             } else {
-                if (audio.paused && state.isPlaying) {
-                    state.isPlaying = false;
-                    playBtn.textContent = '▶ Play';
-                }
-                if (audio.ended) {
-                    state.isPlaying = false;
-                    playBtn.textContent = '▶ Play';
-                    progressBar.value = 1000;
-                    renderLyrics(state.duration);
-                }
-                state.animationId = null;
+                setTimeout(() => URL.revokeObjectURL(videoUrl), 5000);
             }
-        }
 
-        function startSync() {
-            if (state.animationId) cancelAnimationFrame(state.animationId);
-            state.animationId = requestAnimationFrame(syncLoop);
-        }
+            statusMsg.textContent = `✅ Fast render: video & original audio downloaded separately. Use FFmpeg to merge (see Settings).`;
+            mergeNote.style.display = 'block';
+            updateMergeNote();
+        });
+    } else {
+        const videoUrl = URL.createObjectURL(rawVideoBlob);
+        const vA = document.createElement('a');
+        vA.href = videoUrl;
+        vA.download = `${base}_video.webm`;
+        document.body.appendChild(vA);
+        vA.click();
+        document.body.removeChild(vA);
 
-        // --------------------------------------------------------------
-        //  CONTROLS
-        // --------------------------------------------------------------
-        playBtn.addEventListener('click', () => {
-            if (!state.audio || !state.loaded) {
-                statusMsg.textContent = '⏳ load TTML + audio first';
-                return;
+        if (state.audioBlob) {
+            const audioUrl = URL.createObjectURL(state.audioBlob);
+            const aA = document.createElement('a');
+            aA.href = audioUrl;
+            aA.download = `${base}_audio.${ext}`;
+            document.body.appendChild(aA);
+            aA.click();
+            document.body.removeChild(aA);
+            setTimeout(() => {
+                URL.revokeObjectURL(videoUrl);
+                URL.revokeObjectURL(audioUrl);
+            }, 5000);
+        } else {
+            setTimeout(() => URL.revokeObjectURL(videoUrl), 5000);
+        }
+        statusMsg.textContent = `⚠️ Duration fix failed – downloaded separate files. Merge manually.`;
+        mergeNote.style.display = 'block';
+        updateMergeNote();
+    }
+
+    recorder = null;
+    recordChunks = [];
+}
+
+recordBtn.addEventListener('click', async () => {
+    if (isRecording) {
+        if (state.audio) state.audio.onended = null;
+        finalizeRecording(state.settings.videoQuality);
+        return;
+    }
+
+    if (!state.audio || !state.loaded || state.duration <= 0) {
+        statusMsg.textContent = '⚠️ Load audio first!';
+        return;
+    }
+
+    recordBtn.disabled = true;
+    playBtn.disabled = true;
+    progressBar.disabled = true;
+    recordBtn.textContent = '⏺ Recording...';
+    statusMsg.textContent = '⏳ Starting capture...';
+
+    // Reset to beginning to avoid desync
+    state.audio.currentTime = 0;
+    virtualTime = 0;
+    lastRealTime = 0;
+
+    const quality = state.settings.videoQuality;
+    const speed = state.settings.renderSpeed;
+    const baseFps = quality === 'high' ? 30 : 24;
+    const captureFps = Math.round(baseFps * Math.max(speed, 1) * 1.5);
+    const w = quality === 'high' ? 548 : 274;
+    const h = w;
+
+    isRecording = true;
+    recordChunks = [];
+    isRecordingFast = (speed > 1);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+
+    state.audio.volume = 0;
+    state.audio.playbackRate = speed;
+    state.audio.currentTime = 0; // already set but ensure it
+    state.isPlaying = true;
+    playBtn.textContent = '⏸ Pause';
+
+    try {
+        await state.audio.play();
+        startSync();
+    } catch (e) {
+        statusMsg.textContent = '⚠️ ' + e.message;
+        isRecording = false;
+        recordBtn.disabled = false;
+        playBtn.disabled = false;
+        progressBar.disabled = false;
+        recordBtn.textContent = '⏺ Record';
+        state.audio.playbackRate = 1;
+        state.audio.volume = 1;
+        return;
+    }
+
+    const videoStream = canvas.captureStream(captureFps);
+    const videoTracks = videoStream.getVideoTracks();
+
+    if (speed === 1) {
+        const audioStream = state.audio.captureStream();
+        const audioTracks = audioStream.getAudioTracks();
+        const combinedTracks = [...videoTracks, ...audioTracks];
+        combinedStream = new MediaStream(combinedTracks);
+        let mimeType = 'video/webm;codecs=vp8,opus';
+        if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+        recorder = new MediaRecorder(combinedStream, { mimeType });
+        recorder.ondataavailable = (e) => { if (e.data.size > 0) recordChunks.push(e.data); };
+        recorder.start(100);
+        state.audio.onended = () => {
+            if (isRecording) {
+                recorder.stop();
+                setTimeout(() => finalizeRecording(quality), 500);
             }
-            if (state.isPlaying) {
-                state.audio.pause();
-                state.isPlaying = false;
-                playBtn.textContent = '▶ Play';
-                if (state.animationId) cancelAnimationFrame(state.animationId);
-                state.animationId = null;
-                statusMsg.textContent = '⏸ paused';
-            } else {
-                if (state.audio.ended) state.audio.currentTime = 0;
-                state.audio.play().then(() => {
-                    state.isPlaying = true;
-                    playBtn.textContent = '⏸ Pause';
-                    statusMsg.textContent = '▶ playing';
-                    startSync();
-                }).catch(e => {
-                    statusMsg.textContent = '⚠️ ' + e.message;
+        };
+    } else {
+        const videoOnlyStream = new MediaStream(videoTracks);
+        let mimeType = 'video/webm;codecs=vp8';
+        if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+        recorder = new MediaRecorder(videoOnlyStream, { mimeType });
+        recorder.ondataavailable = (e) => { if (e.data.size > 0) recordChunks.push(e.data); };
+        recorder.start(100);
+        state.audio.onended = () => {
+            if (isRecording && recorder && recorder.state === 'recording') {
+                recorder.stop();
+                setTimeout(() => finalizeRecording(quality), 500);
+            }
+        };
+    }
+
+    const speedMsg = speed === 1 ? 'real‑time' : `${speed}× (fast)`;
+    statusMsg.textContent = `⚡ Recording at ${speedMsg}...`;
+
+    let lastFrameTime = 0;
+    let isCapturing = false;
+
+    const captureFrame = async (timestamp) => {
+        if (!isRecording || !recorder || recorder.state !== 'recording') {
+            return;
+        }
+        const interval = 1000 / captureFps;
+        if (timestamp - lastFrameTime >= interval && !isCapturing) {
+            isCapturing = true;
+            try {
+                const domCanvas = await htmlToImage.toCanvas(bratBox, {
+                    backgroundColor: null,
+                    pixelRatio: 1
                 });
-            }
+                ctx.clearRect(0, 0, w, h);
+                ctx.drawImage(domCanvas, 0, 0, w, h);
+                lastFrameTime = timestamp;
+            } catch (e) {}
+            isCapturing = false;
+        }
+        requestAnimationFrame(captureFrame);
+    };
+    requestAnimationFrame(captureFrame);
+});
+
+//  PLAYBACK CONTROLS
+playBtn.addEventListener('click', () => {
+    if (!state.audio || !state.loaded) {
+        statusMsg.textContent = '⏳ load TTML + audio first';
+        return;
+    }
+    if (state.isPlaying) {
+        state.audio.pause();
+        state.isPlaying = false;
+        playBtn.textContent = '▶ Play';
+        if (state.animationId) cancelAnimationFrame(state.animationId);
+        state.animationId = null;
+        statusMsg.textContent = '⏸ paused';
+    } else {
+        if (state.audio.ended) state.audio.currentTime = 0;
+        state.audio.playbackRate = 1;
+        state.audio.volume = 1;
+        state.audio.play().then(() => {
+            state.isPlaying = true;
+            playBtn.textContent = '⏸ Pause';
+            statusMsg.textContent = '▶ playing';
+            startSync();
+        }).catch(e => {
+            statusMsg.textContent = '⚠️ ' + e.message;
         });
+    }
+});
 
-        progressBar.addEventListener('input', (e) => {
-            if (!state.audio || !state.loaded) return;
-            const val = parseFloat(e.target.value) / 1000;
-            const t = val * state.duration;
-            state.audio.currentTime = t;
-            state.currentTime = t;
-            timeDisplay.textContent = formatTime(t) + ' / ' + formatTime(state.duration);
-            renderLyrics(t);
-        });
+progressBar.addEventListener('input', (e) => {
+    if (!state.audio || !state.loaded) return;
+    const val = parseFloat(e.target.value) / 1000;
+    const t = val * state.duration;
+    state.audio.currentTime = t;
+    state.currentTime = t;
+    virtualTime = t;
+    lastRealTime = performance.now() / 1000;
+    timeDisplay.textContent = formatTime(t) + ' / ' + formatTime(state.duration);
+    renderLyrics(t);
+});
+progressBar.addEventListener('change', (e) => {
+    if (!state.audio || !state.loaded) return;
+    const val = parseFloat(e.target.value) / 1000;
+    const t = val * state.duration;
+    state.audio.currentTime = t;
+    state.currentTime = t;
+    virtualTime = t;
+    lastRealTime = performance.now() / 1000;
+    renderLyrics(t);
+});
 
-        progressBar.addEventListener('change', (e) => {
-            if (!state.audio || !state.loaded) return;
-            const val = parseFloat(e.target.value) / 1000;
-            const t = val * state.duration;
-            state.audio.currentTime = t;
-            state.currentTime = t;
-            renderLyrics(t);
-        });
-
-        // --------------------------------------------------------------
-        //  FILE HANDLING
-        // --------------------------------------------------------------
-        function handleTTMLFile(file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    const lines = parseTTML(e.target.result);
-                    state.lines = lines;
-                    document.getElementById('ttmlName').textContent = file.name;
-                    ttmlDrop.classList.add('has-file');
-                    statusMsg.textContent = '✅ TTML loaded: ' + file.name;
-                    checkReady();
-                } catch (err) {
-                    statusMsg.textContent = '❌ TTML error: ' + err.message;
-                }
-            };
-            reader.readAsText(file);
+//  FILE HANDLING
+function handleTTMLFile(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const lines = parseTTML(e.target.result);
+            state.lines = lines;
+            $('ttmlName').textContent = file.name;
+            ttmlDrop.classList.add('has-file');
+            statusMsg.textContent = '✅ TTML loaded: ' + file.name;
+            checkReady();
+        } catch (err) {
+            statusMsg.textContent = '❌ TTML error: ' + err.message;
         }
+    };
+    reader.readAsText(file);
+}
 
-        function handleAudioFile(file) {
-            const url = URL.createObjectURL(file);
-            const audio = new Audio(url);
-            state.audio = audio;
-
-            audio.addEventListener('loadedmetadata', () => {
-                state.duration = audio.duration;
-                state.loaded = true;
-                timeDisplay.textContent = '0:00 / ' + formatTime(audio.duration);
-                progressBar.value = 0;
-                document.getElementById('audioName').textContent = file.name;
-                audioDrop.classList.add('has-file');
-                statusMsg.textContent = '✅ audio loaded: ' + file.name;
-                checkReady();
-                renderLyrics(0);
-            });
-
-            audio.addEventListener('ended', () => {
-                state.isPlaying = false;
-                playBtn.textContent = '▶ Play';
-                if (state.animationId) cancelAnimationFrame(state.animationId);
-                progressBar.value = 1000;
-                renderLyrics(state.duration);
-                statusMsg.textContent = '⏹ finished';
-            });
-
-            audio.load();
+function handleAudioFile(file) {
+    // Stop any currently playing audio
+    if (state.audio) {
+        state.audio.pause();
+        state.audio.currentTime = 0;
+        state.isPlaying = false;
+        playBtn.textContent = '▶ Play';
+        if (state.animationId) {
+            cancelAnimationFrame(state.animationId);
+            state.animationId = null;
         }
+        // Remove old event listeners to avoid duplicates
+        state.audio.onended = null;
+    }
+    // Reset virtual time
+    virtualTime = 0;
+    lastRealTime = 0;
 
-        function checkReady() {
-            if (state.lines.length && state.audio && state.loaded) {
-                statusMsg.textContent = '✅ ready — press Play';
-                playBtn.disabled = false;
-                bratBox.classList.add('has-content');
-                renderLyrics(0);
-            } else {
-                playBtn.disabled = true;
-            }
-        }
+    state.audioFileName = file.name;
+    state.audioBaseName = sanitizeName(file.name);
+    state.audioFileExtension = file.name.split('.').pop() || 'mp3';
+    state.audioBlob = file;
 
-        function setupDropZone(zone, input, handler) {
-            zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
-            zone.addEventListener('dragleave', () => { zone.classList.remove('dragover'); });
-            zone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                zone.classList.remove('dragover');
-                if (e.dataTransfer.files.length) handler(e.dataTransfer.files[0]);
-            });
-            input.addEventListener('change', (e) => {
-                if (input.files.length) handler(input.files[0]);
-            });
-        }
+    const url = URL.createObjectURL(file);
+    const audio = new Audio(url);
+    state.audio = audio;
 
-        setupDropZone(ttmlDrop, ttmlInput, handleTTMLFile);
-        setupDropZone(audioDrop, audioInput, handleAudioFile);
+    audio.addEventListener('loadedmetadata', () => {
+        state.duration = audio.duration;
+        state.loaded = true;
+        timeDisplay.textContent = '0:00 / ' + formatTime(audio.duration);
+        progressBar.value = 0;
+        $('audioName').textContent = file.name;
+        audioDrop.classList.add('has-file');
+        statusMsg.textContent = '✅ audio loaded: ' + file.name;
+        checkReady();
+        renderLyrics(0);
+        updateMergeNote();
+    });
 
-        [ttmlDrop, audioDrop].forEach((zone) => {
-            zone.addEventListener('click', (e) => {
-                if (e.target.tagName !== 'INPUT') {
-                    const inp = zone.querySelector('input[type="file"]');
-                    if (inp) inp.click();
-                }
-            });
-        });
+    audio.addEventListener('ended', () => {});
+    audio.load();
+}
 
-        // --------------------------------------------------------------
-        //  UTILITIES
-        // --------------------------------------------------------------
-        function formatTime(sec) {
-            if (!sec || sec < 0) return '0:00';
-            const m = Math.floor(sec / 60);
-            const s = Math.floor(sec % 60);
-            return m + ':' + String(s).padStart(2, '0');
-        }
-
-        // --------------------------------------------------------------
-        //  INIT
-        // --------------------------------------------------------------
+function checkReady() {
+    if (state.lines.length && state.audio && state.loaded) {
+        statusMsg.textContent = '✅ ready — press Play';
+        playBtn.disabled = false;
+        bratBox.classList.add('has-content');
+        renderLyrics(0);
+    } else {
         playBtn.disabled = true;
-        statusMsg.textContent = 'drop TTML + audio to start';
-        textDisplay.innerHTML = '<span style="color:#666;font-size:28px;filter:none;">drop files</span>';
+    }
+}
 
-        syncSettingsUI();
+function setupDropZone(zone, input, handler) {
+    zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => { zone.classList.remove('dragover'); });
+    zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) handler(e.dataTransfer.files[0]);
+    });
+    input.addEventListener('change', () => {
+        if (input.files.length) handler(input.files[0]);
+    });
+}
 
-        document.addEventListener('dragover', (e) => e.preventDefault());
-        document.addEventListener('drop', (e) => {
-            e.preventDefault();
-            const files = e.dataTransfer.files;
-            if (!files.length) return;
-            for (const f of files) {
-                const name = f.name.toLowerCase();
-                if (name.endsWith('.ttml') || name.endsWith('.xml')) {
-                    handleTTMLFile(f);
-                } else if (f.type.startsWith('audio/')) {
-                    handleAudioFile(f);
-                }
-            }
-        });
+setupDropZone(ttmlDrop, ttmlInput, handleTTMLFile);
+setupDropZone(audioDrop, audioInput, handleAudioFile);
 
-        document.addEventListener('keydown', (e) => {
-            if (e.target.tagName === 'INPUT') return;
-            if (e.code === 'Space') {
-                e.preventDefault();
-                playBtn.click();
-            }
-        });
+[ttmlDrop, audioDrop].forEach((zone) => {
+    zone.addEventListener('click', (e) => {
+        if (e.target.tagName !== 'INPUT') {
+            const inp = zone.querySelector('input[type="file"]');
+            if (inp) inp.click();
+        }
+    });
+});
 
-        let resizeTimer;
-        window.addEventListener('resize', () => {
-            clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(() => {
-                if (state.lines.length && state.audio) {
-                    renderLyrics(state.currentTime);
-                }
-            }, 200);
-        });
-    </script>
+//  UTILITIES
+function formatTime(sec) {
+    if (!sec || sec < 0) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return m + ':' + String(s).padStart(2, '0');
+}
+
+//  INIT
+playBtn.disabled = true;
+statusMsg.textContent = 'drop TTML + audio to start';
+textDisplay.innerHTML = '<span style="color:#666;font-size:28px;filter:none;">drop files</span>';
+syncSettingsUI();
+
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const files = e.dataTransfer.files;
+    if (!files.length) return;
+    for (const f of files) {
+        const name = f.name.toLowerCase();
+        if (name.endsWith('.ttml') || name.endsWith('.xml')) {
+            handleTTMLFile(f);
+        } else if (f.type.startsWith('audio/')) {
+            handleAudioFile(f);
+        }
+    }
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.code === 'Space') {
+        e.preventDefault();
+        playBtn.click();
+    }
+});
+
+let resizeTimer;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        if (state.lines.length && state.audio) {
+            renderLyrics(state.currentTime);
+        }
+    }, 200);
+});
+</script>
 </body>
 </html>
