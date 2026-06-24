@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-    <!--
+<!--
   This project uses:
   - html-to-image (MIT License) – https://github.com/bubkoo/html-to-image
   - fix-webm-duration (MIT License) – https://github.com/yusitnikov/fix-webm-duration
@@ -327,7 +327,7 @@ function updateMergeNote() {
         mergeNote.style.display = 'block';
         const baseFps = state.settings.videoQuality === 'high' ? 30 : 24;
         const filter = `setpts=PTS*${speed},fps=${baseFps}`;
-        ffmpegCmd.textContent = `ffmpeg -i ${base}_video.webm -itsoffset 0.1 -i ${base}_audio.${ext} -filter:v "${filter}" -c:v libx264 -preset fast -crf 22 -c:a aac -b:a 192k -map 0:v -map 1:a ${base}_merged.mp4`;
+        ffmpegCmd.textContent = `ffmpeg -i ${base}_video.webm -itsoffset 0.1 -i ${base}_audio.${ext} -filter:v "${filter}" -c:v libx264 -preset fast -crf 22 -c:a aac -b:a 192k -map 0:v -map 1:a ${base}_merged.mp4 && del ${base}_video.webm ${base}_audio.${ext}`;
     }
 }
 
