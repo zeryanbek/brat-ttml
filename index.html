@@ -4,9 +4,11 @@
   This project uses:
   - html-to-image (MIT License) – https://github.com/bubkoo/html-to-image
   - fix-webm-duration (MIT License) – https://github.com/yusitnikov/fix-webm-duration
-  Full license texts:
-  https://github.com/bubkoo/html-to-image/blob/master/LICENSE
-  https://github.com/yusitnikov/fix-webm-duration/blob/master/LICENSE
+  - wanakana (MIT) – https://github.com/WaniKani/WanaKana
+  - pinyin-pro (MIT) – https://github.com/zh-lx/pinyin-pro
+  - kuroshiro (MIT) – https://github.com/hexenq/kuroshiro
+  - kuromoji (MIT) – https://github.com/takuyaa/kuromoji.js
+  Korean romanization is custom (Revised Romanization).
 -->
 <head>
     <meta charset="UTF-8" />
@@ -14,8 +16,11 @@
     <title>brat visualizer</title>
     <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fix-webm-duration@1.0.6/fix-webm-duration.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/wanakana@5.0.2/wanakana.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.19.3/dist/pinyin-pro.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/kuroshiro@1.2.0/dist/kuroshiro.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.min.js"></script>
     <style>
-        /* (same styles, unchanged) */
         * { margin:0; padding:0; box-sizing:border-box; }
         body { background:#000; font-family:'Arial Narrow',Arial,sans-serif; display:flex; justify-content:center; align-items:center; min-height:100vh; color:#eee; user-select:none; }
         .app { display:flex; flex-direction:column; align-items:center; gap:16px; padding:20px; width:100%; max-width:700px; }
@@ -42,6 +47,8 @@
         .brat-box-wrap.duet-mode.duet-inverted #textDisplay { color:#000 !important; }
         #textDisplay { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:500; filter:blur(2px); text-align:justify; text-align-last:justify; line-height:1.2; padding:0; box-sizing:border-box; word-break:keep-all; overflow:visible; transition:none !important; }
         #bgvDisplay { position:absolute; top:25px; left:0; width:100%; height:calc(100% - 50px); display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:500; filter:blur(2px); text-align:justify; text-align-last:justify; line-height:1.2; padding:0; box-sizing:border-box; word-break:keep-all; overflow:visible; pointer-events:none; z-index:10; transition:none !important; color:#fff; mix-blend-mode:difference; }
+        .cjk-text { word-break:break-word !important; overflow-wrap:break-word !important; }
+        .romanized-text { word-break:break-word !important; overflow-wrap:break-word !important; }
         .brat-box-wrap.bgv-solid #bgvDisplay { color:#000 !important; mix-blend-mode:normal !important; opacity:.75 !important; }
         .brat-box-wrap.duet-mode.bgv-solid #bgvDisplay { color:#fff !important; }
         .brat-box-wrap.duet-inverted.bgv-solid #bgvDisplay { color:#fff !important; }
@@ -88,7 +95,7 @@
 <div class="app">
     <div class="header-title">
         <h2>Brat styled TTML visualiser</h2>
-        <p>V5 - 25-06-2026</p>
+        <p>V6 - 27-06-2026</p>
     </div>
     <div class="drop-row">
         <div class="drop-zone" id="ttmlDrop">
@@ -203,6 +210,10 @@
                 <label style="font-size:14px; color:#ccc;">Invert Duet</label>
                 <button class="settings-btn" id="invertDuetBtn">Enable</button>
             </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+                <label style="font-size:14px; color:#ccc;">Romanize Lyrics</label>
+                <button class="settings-btn" id="romanizeBtn">Enable</button>
+            </div>
             <div style="display:flex; justify-content:flex-end; margin-top:4px;">
                 <button class="settings-btn" id="resyncBtn">↻ Refresh Sync</button>
             </div>
@@ -212,7 +223,6 @@
 </div>
 
 <script>
-//  UTILITY: sanitize filename
 function sanitizeName(name) {
     let base = name.replace(/\.[^/.]+$/, '');
     base = base.replace(/[,\s\[\]()'"]/g, '_');
@@ -222,7 +232,290 @@ function sanitizeName(name) {
     return base || 'recording';
 }
 
-//  STATE
+function hasCJK(text) {
+    return /[\u3040-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF]/.test(text);
+}
+
+function romanizeKorean(text) {
+    const initial = ['g','kk','n','d','tt','r','m','b','pp','s','ss','','j','jj','ch','k','t','p','h'];
+    const medial = ['a','ae','ya','yae','eo','e','yeo','ye','o','wa','wae','oe','yo','u','wo','we','wi','yu','eu','ui','i'];
+    const final = ['','g','kk','gs','n','nj','nh','d','l','lg','lm','lb','ls','lt','lp','lh','m','b','bs','s','ss','ng','j','ch','k','t','p','h'];
+    let result = '';
+    for (let ch of text) {
+        const code = ch.charCodeAt(0);
+        if (code >= 0xAC00 && code <= 0xD7AF) {
+            const syllable = code - 0xAC00;
+            const initialIndex = Math.floor(syllable / 588);
+            const medialIndex = Math.floor((syllable % 588) / 28);
+            const finalIndex = syllable % 28;
+            let roman = initial[initialIndex] + medial[medialIndex];
+            if (finalIndex > 0) roman += final[finalIndex];
+            result += roman;
+        } else {
+            result += ch;
+        }
+    }
+    return result;
+}
+
+const KANJI_MAP = {
+    '僕':'boku','白':'shiro','気':'ki','球':'kyuu','作':'saku',
+    '入':'iru','赤':'aka','貼':'haru','用':'you','意':'i',
+    '簡':'kan','単':'tan','旅':'tabi','支':'shi','度':'do',
+    '地':'chi','面':'men','掘':'horu','返':'kaeru','手':'te',
+    '紙':'kami','待':'matsu','伏':'fuseru','下':'shita','確':'tashika',
+    '流':'nagare','聞':'kiku','見':'miru','友':'tomo','達':'tachi',
+    '名':'na','前':'mae','勝':'katsu','付':'tsukeru','探':'sagasu',
+    '空':'sora','打':'utsu','上':'ue','笑':'warau','合':'au',
+    '運':'hakobu','渡':'wataru','鳥':'tori','南':'minami','飛':'tobu',
+    '立':'tatsu','寒':'samui','冬':'fuyu','来':'kuru','君':'kimi',
+    '雲':'kumo','影':'kage','国':'kuni','巡':'meguru','同':'onaji',
+    '乗':'noru','広':'hiroi','風':'kaze','切':'kiru','今':'ima',
+    '年':'toshi','越':'koeru','会':'au','心':'kokoro','重':'omoi',
+    '真':'ma','鮮':'azayaka','恋':'koi','花':'hana','舞':'mau',
+    '常':'tsune','識':'shiki','変':'kawaru','驚':'odoroku','日':'hi',
+    '愛':'ai','鳴':'naru','煙':'kemuri','巻':'maku','駆':'kakeru',
+    '七':'nana','色':'iro','伸':'nobiru','触':'fureru','光':'hikari',
+    '街':'machi','染':'someru','転':'korobu','道':'michi','本':'moto',
+    '当':'ataru','言':'iu','葉':'ha','約':'yaku','束':'taba',
+    '永':'ei','遠':'en','未':'mi','来':'rai','過':'sugu',
+    '去':'saru','現':'gen','在':'zai','自':'ji','分':'bun',
+    '行':'iku','帰':'kaeru','話':'hanasu','語':'kataru','伝':'tsutaeru',
+    '知':'shiru','分':'wakaru','感':'kanjiru','思':'omou','考':'kangaeru',
+    '生':'ikiru','死':'shinu','戦':'tatakau','守':'mamoru','助':'tasukeru',
+    '救':'sukuu','呼':'yobu','叫':'sakebu','泣':'naku','歌':'utau',
+    '踊':'odoru','走':'hashiru','泳':'oyogu','遊':'asobu','食':'taberu',
+    '飲':'nomu','眠':'nemuru','目':'me','覚':'sameru','忘':'wasureru',
+    '一':'ichi','二':'ni','三':'san','四':'yon','五':'go',
+    '六':'roku','八':'hachi','九':'kyuu','十':'juu','百':'hyaku',
+    '千':'sen','万':'man','円':'en','元':'gen','方':'hou',
+    '月':'tsuki','火':'hi','水':'mizu','木':'ki','金':'kane',
+    '土':'tsuchi','山':'yama','川':'kawa','田':'ta','林':'hayashi',
+    '森':'mori','人':'hito','男':'otoko','女':'onna','子':'ko',
+    '父':'chichi','母':'haha','兄':'ani','姉':'ane','弟':'otouto',
+    '妹':'imouto','私':'watashi','俺':'ore','彼':'kare','彼女':'kanojo',
+    '学校':'gakkou','先生':'sensei','学生':'gakusei','教師':'kyoushi',
+    '授業':'jugyou','勉強':'benkyou','試験':'shiken','大学':'daigaku',
+    '会社':'kaisha','仕事':'shigoto','社長':'shachou','部長':'buchou',
+    '課長':'kachou','店':'mise','客':'kyaku','商品':'shouhin',
+    '料理':'ryouri','食事':'shokuji','朝食':'choushoku','昼食':'chuushoku',
+    '夕食':'yuushoku','夜食':'yashoku','果物':'kudamono','野菜':'yasai',
+    '肉':'niku','魚':'sakana','卵':'tamago','牛乳':'gyuunyuu',
+    '茶':'cha','行く':'iku','来る':'kuru','帰る':'kaeru','歩く':'aruku',
+    '止まる':'tomaru','曲がる':'magaru','通る':'tooru','出る':'deru',
+    '開く':'hiraku','閉める':'shimeru','使う':'tsukau','建てる':'tateru',
+    '壊す':'kowasu','直す':'naosu','治す':'naosu','読む':'yomu',
+    '書く':'kaku','描く':'kaku','踊る':'odoru','寝る':'neru',
+    '起きる':'okiru','座る':'suwaru','倒れる':'taoreru','滑る':'suberu',
+    '潜る':'moguru','輝く':'kagayaku','光る':'hikaru','怒る':'okoru',
+    '喜ぶ':'yorokobu','悲しむ':'kanashimu','楽しむ':'tanoshimu',
+    '苦しむ':'kurushimu','悩む':'nayamu','迷う':'mayou','感動':'kandou',
+    '感謝':'kansha','謝る':'ayamaru','許す':'yurusu','支える':'sasaeru',
+    '支払う':'shiharau','払う':'harau','引く':'hiku','押す':'osu',
+    '振る':'furu','回す':'mawasu','回る':'mawaru','回転':'kaiten',
+    '転がす':'korogasu','転がる':'korogaru','巻き込む':'makikomu',
+    '駆け抜ける':'kakenukeru','追う':'ou','逃げる':'nigeru',
+    '隠れる':'kakureru','隠す':'kakusu','見つける':'mitsukeru',
+    '見つかる':'mitsukaru','信じる':'shinjiru','疑う':'utagau',
+    '望む':'nozomu','願う':'negau','祈る':'inoru','祝う':'iwau',
+    '抱く':'idaku','抱える':'kakaeru','持つ':'motsu','届ける':'todokeru',
+    '届く':'todoku','送る':'okuru','贈る':'okuru','与える':'ataeru',
+    '授ける':'sazukeru','学ぶ':'manabu','教える':'oshieru','習う':'narau',
+    '暗記':'anki','復習':'fukushuu','予習':'yoshuu','練習':'renshuu',
+    '訓練':'kunren','試す':'tamesu','試合':'shiai','勝負':'shoubu',
+    '負ける':'makeru','引き分け':'hikiwake','優勝':'yuushou',
+    '準優勝':'junyuushou','大会':'taikai','競技':'kyougi',
+    '選手':'senshu','監督':'kantoku','音楽':'ongaku','曲':'kyoku',
+    '旋律':'senritsu','映画':'eiga','漫画':'manga',
+    '雑誌':'zasshi','新聞':'shinbun','辞書':'jisho','地図':'chizu',
+    '案内':'annai','案内板':'annaiban','標識':'hyoushiki',
+    '信号':'shingou','道路':'douro','横断歩道':'oudanhodou',
+    '歩道':'hodou','車道':'shadou','車':'kuruma','自転車':'jitensha',
+    '飛行機':'hikouki','船':'fune','電車':'densha','地下鉄':'chikatetsu',
+    '新幹線':'shinkansen','出口':'deguchi','入口':'iriguchi',
+    '階段':'kaidan','非常口':'hijouguchi','電話':'denwa','携帯':'keitai',
+    '住所':'juusho','年齢':'nenrei','性別':'seibetsu','国籍':'kokuseki',
+    '言語':'gengo','日本語':'nihongo','英語':'eigo','中国語':'chuugokugo',
+    '韓国語':'kankokugo','会話':'kaiwa','読解':'dokkai','聴解':'choukai',
+    '作文':'sakubun','文法':'bunpou','語彙':'goi','発音':'hatsuon',
+    '天気':'tenki','気温':'kion','湿度':'shitsudo','風速':'fuusoku',
+    '雨':'ame','雪':'yuki','晴れ':'hare','曇り':'kumori','台風':'taifuu',
+    '地震':'jishin','津波':'tsunami','火山':'kazan','湖':'mizuumi','海':'umi',
+    '都市':'toshi','首都':'shuto','地方':'chihou','県':'ken',
+    '市':'shi','区':'ku','番地':'banchi','丁目':'choume',
+    '号':'gou','部屋':'heya','階':'kai','室':'shitsu',
+    '棟':'tou','建物':'tatemono','家':'ie','庭':'niwa',
+    '窓':'mado','鍵':'kagi','鍵穴':'kagiana','錠':'jou',
+    '机':'tsukue','椅子':'isu','棚':'tana','本棚':'hondana',
+    '冷蔵庫':'reizouko','電子レンジ':'denshirenji','炊飯器':'suihanki',
+    '鍋':'nabe','包丁':'houchou','計量':'keiryou','箸':'hashi',
+    '茶碗':'chawan','丼':'donburi','皿':'sara','瓶':'bin',
+    '枕':'makura','布団':'futon','毛布':'moufu','掛け布団':'kakefuton',
+    '敷布団':'shikifuton','靴':'kutsu','靴下':'kutsushita','帽子':'boushi',
+    '手袋':'tebukuro','時計':'tokei','眼鏡':'megane','財布':'saifu',
+    '傘':'kasa','杖':'tsue','車椅子':'kurumaisu','病院':'byouin',
+    '医者':'isha','看護師':'kangoshi','薬':'kusuri','健康':'kenkou',
+    '病気':'byouki','怪我':'kega','熱':'netsu','風邪':'kaze',
+    '消毒':'shoudoku','味噌汁':'misoshiru','漬物':'tsukemono',
+    '煮物':'nimono','焼き魚':'yakizakana','刺身':'sashimi','寿司':'sushi',
+    '天ぷら':'tenpura','蕎麦':'soba','餃子':'gyoza','春巻き':'harumaki',
+    '点心':'tenshin','飲茶':'yamucha','中華':'chuuka','和食':'washoku',
+    '洋食':'youshoku','醤油':'shouyu','塩':'shio','砂糖':'satou',
+    '胡椒':'koshou','唐辛子':'tougarashi','炭酸':'tansan',
+    '日本酒':'nihonshu','焼酎':'shouchuu','煙草':'tabako','灰皿':'haizara',
+    '炎':'honoo','灰':'hai','木炭':'mokutan','炭':'sumi',
+    '教科書':'kyoukasho','参考書':'sankousho','問題集':'mondaishuu',
+    '鉛筆':'enpitsu','消しゴム':'keshigomu','定規':'jougi',
+    '色鉛筆':'iroenpitsu','蛍光ペン':'keikoupen','黒板':'kokuban',
+    '通学':'tsuugaku','通勤':'tsuukin','登校':'toukou','下校':'gekou',
+    '休憩':'kyuukei','昼休み':'hiruyasumi','放課後':'houkago','部活':'bukatsu',
+    '文化祭':'bunkasai','体育祭':'taiikusai','運動会':'undoukai',
+    '遠足':'ensoku','修学旅行':'shuugakuryokou','卒業':'sotsugyou',
+    '入学':'nyuugaku','転校':'tenkou','留学':'ryuugaku','短大':'tandai',
+    '専門学校':'senmon gakkou','大学院':'daigakuin','学部':'gakubu',
+    '学科':'gakka','研究室':'kenkyuushitsu','教授':'kyouju',
+    '准教授':'junkyouju','講師':'koushi','助手':'joshu','研究生':'kenkyuusei',
+    '留学生':'ryuugakusei','卒業生':'sotsugyousei','同窓生':'dousousei',
+    '同級生':'doukyuusei','先輩':'senpai','後輩':'kouhai','同期':'douki',
+    '同僚':'douryou','上司':'joushi','部下':'buka','親友':'shinyuu',
+    '恋愛':'renai','恋人':'koibito','彼氏':'kareshi','結婚':'kekkon',
+    '離婚':'rikon','妊娠':'ninshin','出産':'shussan','子育て':'kosodate',
+    '家族':'kazoku','両親':'ryoushin','兄弟':'kyoudai','姉妹':'shimai',
+    '親':'oya','子供':'kodomo','孫':'mago','職業':'shokugyou',
+    '会社員':'kaishain','公務員':'koumuin','自営業':'jieigyou',
+    '薬剤師':'yakuzaishi','歯科医師':'shikaishi','弁護士':'bengoshi',
+    '研究員':'kenkyuuin','技師':'gishi','技術者':'gijutsusha',
+    '建築家':'kenchikuka','設計士':'sekkeishi','大工':'daiku',
+    '左官':'sakan','塗装工':'tososou','配管工':'haikankou',
+    '電気工':'denkikou','整備士':'seibishi','自動車':'jidousha',
+    '鉄道':'tetsudou','運転手':'untenshu','船長':'senchou',
+    '車掌':'shashou','駅員':'ekiin','店員':'tenin','販売員':'hanbaiin',
+    '受付':'uketsuke','秘書':'hisho','警備員':'keibiin','警察官':'keisatsukan',
+    '消防士':'shoubouhi','自衛官':'jieikan','海上保安官':'kaijihouankan',
+    '政治家':'seijika','官僚':'kanryou','裁判官':'saibankan',
+    '検察官':'kensatsukan','司法書士':'shihoushoushi','税理士':'zeirishi',
+    '会計士':'kaikeishi','建築士':'kenchikushi','測量士':'sokuryoushi',
+    '通訳':'tsuuyaku','翻訳家':'hon\'yakuka','作家':'sakka',
+    '小説家':'shousetsuka','詩人':'shijin','画家':'gaka',
+    '彫刻家':'choukokka','写真家':'shashinka','映画監督':'eigakantoku',
+    '俳優':'haiyuu','声優':'seiyuu','歌手':'kashu','作曲家':'sakkyokuka',
+    '編曲家':'henkyokuka','指揮者':'shikisha','演奏家':'ensouka',
+    '振付師':'furitsukeshi','演出家':'enshutsuka','舞台監督':'butaikantoku',
+    '照明':'shoumei','音響':'onkyou','司会者':'shikaisha',
+    '司書':'shisho','司書教諭':'shishokyouyu','学術研究員':'gakujutsukenkyuuin',
+    '研究助手':'kenkyuujoshu','経理':'keiri','人事':'jinji',
+    '総務':'soumu','営業':'eigyou','広報':'kouhou','広告':'koukoku',
+    '企画':'kikaku','開発':'kaihatsu','研究':'kenkyuu','技術':'gijutsu',
+    '製造':'seizou','品質管理':'hinshitsukanri','検査':'kensa',
+    '出荷':'shukka','配送':'haisou','保管':'hokan','在庫管理':'zaikokanri',
+    '購買':'koubai','調達':'choutatsu','契約':'keiyaku','法務':'houmu',
+    '顧問':'komon','相談役':'soudan\'yaku','監査役':'kansayaku',
+    '取締役':'torishimariyaku','会長':'kaichou','副社長':'fukushachou',
+    '専務':'senmu','常務':'joumu','主事':'shuji','補佐':'hosa',
+    '派遣社員':'haken shain','嘱託':'shokutaku','非常勤':'hijoukin',
+    '常勤':'joukin','正社員':'seishain','契約社員':'keiyakushain',
+    '嘱託社員':'shokutakushain','臨時社員':'rinjishain','経営者':'keieisha',
+    '投資家':'toushika','保険':'hoken','金融':'kinyuu',
+    '銀行':'ginkou','証券':'shouken','為替':'kawase','株式':'kabushiki',
+    '債券':'saiken','投資信託':'toushishintaku','不動産':'fudousan',
+    '賃貸':'chintai','売買':'baibai','仲介':'chuukai','鑑定':'kantei',
+    '評価':'hyouka','会計':'kaikei','税務':'zeimu','監査':'kansa',
+    '時':'toki','中':'naka','廻':'mawaru','離':'hanareru','動':'ugoku',
+    '間':'aida','隙':'suki','続':'tsuzuku','周':'mawari','無':'mu',
+    '駄':'da','悲':'kanashii','疲':'tsukareru','何':'nani','戸':'to',
+    '惑':'mayou','黒':'kuro','事':'koto','貴':'ki','全':'zen',
+    '蓋':'futa','降':'oriru','季':'ki','節':'setsu','最':'sai',
+    '後':'ato','辛':'karai','汚':'kitanai','落':'ochiru','遍':'hen',
+    '繰':'kuru','始':'hajimaru','淡':'awai','揺':'yureru','積':'tsumu',
+    '夜':'yoru','昨':'saku','御':'o','伽':'togi','噺':'hanashi',
+    '姫':'hime','様':'sama','王':'ou','幸':'shiawase','甘':'amai',
+    '大':'dai','好':'suki','辞':'ji','儀':'gi','訊':'tazuneru',
+    '俯':'fuseru','叩':'tataku','違':'chigau','夕':'yuu','焼':'yaku',
+    '新':'shin','背':'se','幼':'osanai','浮':'uku','城':'shiro',
+    '魔':'ma','法':'hou','溶':'tokeru','薄':'usui','悪':'aku',
+    '声':'koe','回':'mawaru','夢':'yume','与':'ataeru','世':'yo','歩':'aru',
+	'壊':'kowasu','物':'mono'
+};
+
+let kuroshiroInstance = null;
+let kuroshiroLoaded = false;
+
+async function romanizeText(text) {
+    if (!state.settings.romanize) return text;
+    if (!text) return text;
+
+    if (/[\u3040-\u30FF\u4E00-\u9FFF]/.test(text)) {
+        try {
+            if (typeof Kuroshiro !== 'undefined' && typeof kuromoji !== 'undefined') {
+                if (!kuroshiroLoaded) {
+                    try {
+                        const analyzer = new kuromoji.TokenizerBuilder({
+                            dicPath: 'https://unpkg.com/kuromoji@0.1.2/dict/'
+                        }).build();
+                        kuroshiroInstance = new Kuroshiro();
+                        await kuroshiroInstance.init(analyzer);
+                        kuroshiroLoaded = true;
+                    } catch (e) {
+                        kuroshiroLoaded = false;
+                    }
+                }
+                if (kuroshiroLoaded && kuroshiroInstance) {
+                    try {
+                        const result = await kuroshiroInstance.convert(text, { to: 'romaji', mode: 'normal' });
+                        if (result) return result;
+                    } catch (e) {}
+                }
+            }
+            let result = text;
+            if (typeof wanakana !== 'undefined' && wanakana.toRomaji) {
+                result = wanakana.toRomaji(result);
+            }
+            result = result.replace(/[\u4E00-\u9FFF]+/g, (match) => {
+                if (KANJI_MAP[match]) return KANJI_MAP[match];
+                let mapped = '';
+                for (let ch of match) {
+                    if (KANJI_MAP[ch]) {
+                        mapped += KANJI_MAP[ch] + ' ';
+                    } else {
+                        mapped += ch;
+                    }
+                }
+                return mapped.trim();
+            });
+            return result;
+        } catch (e) {
+            return text;
+        }
+    }
+
+    if (/[\uAC00-\uD7AF]/.test(text)) {
+        try {
+            return romanizeKorean(text);
+        } catch (e) {
+            return text;
+        }
+    }
+
+    if (/[\u4E00-\u9FFF]/.test(text)) {
+        if (typeof pinyinPro !== 'undefined' && pinyinPro.pinyin) {
+            try {
+                let result = '';
+                for (let ch of text) {
+                    if (/[\u4E00-\u9FFF]/.test(ch)) {
+                        const p = pinyinPro.pinyin(ch, { toneType: 'none' });
+                        result += p + ' ';
+                    } else {
+                        result += ch;
+                    }
+                }
+                return result.trim();
+            } catch (e) {}
+        }
+    }
+
+    return text;
+}
+
 const state = {
     lines: [],
     audio: null,
@@ -243,6 +536,7 @@ const state = {
         bgvAlign: 'center',
         bgvEnabled: true,
         invertDuet: false,
+        romanize: false,
         mainSyncMode: 'word-by-word',
         bgvSyncMode: 'single-word',
         ttmlOffset: 0,
@@ -251,7 +545,6 @@ const state = {
     }
 };
 
-// DOM refs
 const $ = id => document.getElementById(id);
 const textDisplay = $('textDisplay');
 const bgvDisplay = $('bgvDisplay');
@@ -275,6 +568,7 @@ const bgvScaleValue = $('bgvScaleValue');
 const bgvAlignSelect = $('bgvAlign');
 const bgvToggleBtn = $('bgvToggle');
 const invertDuetBtn = $('invertDuetBtn');
+const romanizeBtn = $('romanizeBtn');
 const resyncBtn = $('resyncBtn');
 const mainSyncModeSelect = $('mainSyncMode');
 const bgvSyncModeSelect = $('bgvSyncMode');
@@ -289,7 +583,6 @@ const ffmpegCmd = $('ffmpegCmd');
 const copyCmdBtn = $('copyCmdBtn');
 const copyFeedback = $('copyFeedback');
 
-//  UI SYNC
 function syncSettingsUI() {
     fontScaleInput.value = state.settings.fontScale;
     fontScaleValue.textContent = state.settings.fontScale.toFixed(2) + 'x';
@@ -314,6 +607,8 @@ function syncSettingsUI() {
     invertDuetBtn.classList.toggle('active', state.settings.invertDuet);
     if (state.settings.invertDuet) bratBox.classList.add('duet-inverted');
     else bratBox.classList.remove('duet-inverted');
+    romanizeBtn.textContent = state.settings.romanize ? 'Disable' : 'Enable';
+    romanizeBtn.classList.toggle('active', state.settings.romanize);
     updateMergeNote();
 }
 
@@ -331,7 +626,6 @@ function updateMergeNote() {
     }
 }
 
-// Copy command
 copyCmdBtn.addEventListener('click', () => {
     const cmd = ffmpegCmd.textContent;
     navigator.clipboard.writeText(cmd).then(() => {
@@ -349,7 +643,6 @@ copyCmdBtn.addEventListener('click', () => {
     });
 });
 
-//  SETTINGS HANDLERS
 settingsToggle.addEventListener('click', () => settingsPanel.classList.toggle('open'));
 
 fontScaleInput.addEventListener('input', (e) => {
@@ -419,9 +712,15 @@ invertDuetBtn.addEventListener('click', () => {
     else bratBox.classList.remove('duet-inverted');
     if (state.lines.length && state.audio) renderLyrics(state.currentTime);
 });
+romanizeBtn.addEventListener('click', () => {
+    state.settings.romanize = !state.settings.romanize;
+    romanizeBtn.textContent = state.settings.romanize ? 'Disable' : 'Enable';
+    romanizeBtn.classList.toggle('active', state.settings.romanize);
+    if (state.lines.length && state.audio) renderLyrics(state.currentTime);
+});
 resyncBtn.addEventListener('click', () => {
     if (!state.audio || !state.loaded) {
-        statusMsg.textContent = '⏳ Wait for TTML + audio to load first!';
+        statusMsg.textContent = 'Wait for TTML + audio to load first!';
         return;
     }
     const currentAudioTime = state.audio.currentTime;
@@ -433,10 +732,9 @@ resyncBtn.addEventListener('click', () => {
             startSync();
         }
     }
-    statusMsg.textContent = '✅ Sync refreshed';
+    statusMsg.textContent = 'Sync refreshed';
 });
 
-//  TTML PARSER
 function parseTime(str) {
     if (!str) return null;
     str = str.trim();
@@ -522,7 +820,6 @@ function parseTTML(xmlStr) {
     return lines;
 }
 
-//  TEXT FITTING
 function fitText(container, textContent, scaleModifier = 1.0) {
     const TARGET_WIDTH = 460;
     const TARGET_HEIGHT = 460;
@@ -543,6 +840,8 @@ function fitText(container, textContent, scaleModifier = 1.0) {
     clone.style.textAlignLast = 'auto';
     clone.style.transform = 'none';
     clone.style.letterSpacing = '0px';
+    clone.style.wordBreak = getComputedStyle(container).wordBreak;
+    clone.style.overflowWrap = getComputedStyle(container).overflowWrap;
     document.body.appendChild(clone);
     const measure = (size) => {
         clone.style.fontSize = size + 'px';
@@ -580,17 +879,17 @@ function fitText(container, textContent, scaleModifier = 1.0) {
     return finalSize;
 }
 
-//  RENDER LYRICS
-function renderLyrics(time) {
+async function renderLyrics(time) {
     const adjustedTime = time + state.settings.ttmlOffset;
     const lines = state.lines;
     if (!lines.length) {
         textDisplay.innerHTML = '';
         bgvDisplay.innerHTML = '';
         bratBox.classList.remove('duet-mode');
+        textDisplay.classList.remove('cjk-text', 'romanized-text');
+        bgvDisplay.classList.remove('cjk-text', 'romanized-text');
         return;
     }
-    // --- MAIN VOCALS ---
     let currentLineIdx = -1;
     for (let i = 0; i < lines.length; i++) {
         if (lines[i].words.length && lines[i].words[0].start <= adjustedTime + 0.001) {
@@ -602,6 +901,7 @@ function renderLyrics(time) {
     if (currentLineIdx === -1) {
         textDisplay.innerHTML = '';
         bratBox.classList.remove('duet-mode');
+        textDisplay.classList.remove('cjk-text', 'romanized-text');
     } else {
         const line = lines[currentLineIdx];
         if (line.agent && line.agent.includes('v2')) {
@@ -628,16 +928,28 @@ function renderLyrics(time) {
         }
         if (visibleWords.length) {
             let lineText = visibleWords.join('');
+            let originalText = lineText;
+            if (state.settings.romanize) {
+                lineText = await romanizeText(lineText);
+            }
             let escaped = lineText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             escaped = escaped.replace(/(\S+\s?—)/g, '<span style="white-space:nowrap">$1</span>');
             const html = `<span class="line-wrap">${escaped}</span>`;
             textDisplay.innerHTML = html;
+            textDisplay.classList.remove('cjk-text', 'romanized-text');
+            if (hasCJK(originalText)) {
+                if (state.settings.romanize) {
+                    textDisplay.classList.add('romanized-text');
+                } else {
+                    textDisplay.classList.add('cjk-text');
+                }
+            }
             fitText(textDisplay, html, state.settings.fontScale);
         } else {
             textDisplay.innerHTML = '';
+            textDisplay.classList.remove('cjk-text', 'romanized-text');
         }
     }
-    // --- BACKGROUND VOCALS ---
     if (state.settings.bgvEnabled) {
         let currentBgvLineIdx = -1;
         for (let i = 0; i < lines.length; i++) {
@@ -668,26 +980,41 @@ function renderLyrics(time) {
                 }
                 if (visibleBgvWords.length) {
                     let bgvText = visibleBgvWords.join('');
+                    let originalBgvText = bgvText;
+                    if (state.settings.romanize) {
+                        bgvText = await romanizeText(bgvText);
+                    }
                     let escapedBgv = bgvText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                     escapedBgv = escapedBgv.replace(/(\S+\s?—)/g, '<span style="white-space:nowrap">$1</span>');
                     const htmlBgv = `<span class="line-wrap">${escapedBgv}</span>`;
                     bgvDisplay.innerHTML = htmlBgv;
+                    bgvDisplay.classList.remove('cjk-text', 'romanized-text');
+                    if (hasCJK(originalBgvText)) {
+                        if (state.settings.romanize) {
+                            bgvDisplay.classList.add('romanized-text');
+                        } else {
+                            bgvDisplay.classList.add('cjk-text');
+                        }
+                    }
                     fitText(bgvDisplay, htmlBgv, state.settings.bgvScale);
                 } else {
                     bgvDisplay.innerHTML = '';
+                    bgvDisplay.classList.remove('cjk-text', 'romanized-text');
                 }
             } else {
                 bgvDisplay.innerHTML = '';
+                bgvDisplay.classList.remove('cjk-text', 'romanized-text');
             }
         } else {
             bgvDisplay.innerHTML = '';
+            bgvDisplay.classList.remove('cjk-text', 'romanized-text');
         }
     } else {
         bgvDisplay.innerHTML = '';
+        bgvDisplay.classList.remove('cjk-text', 'romanized-text');
     }
 }
 
-//  SYNC LOOP
 let virtualTime = 0;
 let lastRealTime = 0;
 let isRecordingFast = false;
@@ -741,7 +1068,6 @@ function startSync() {
     state.animationId = requestAnimationFrame(syncLoop);
 }
 
-//  RECORDING – video only for speed > 1, combined for speed 1
 let recorder = null;
 let isRecording = false;
 let recordChunks = [];
@@ -781,9 +1107,8 @@ function finalizeRecording(quality) {
     const ext = state.audioFileExtension;
 
     if (speed === 1) {
-        // Fix duration for 1x recording
         if (recordChunks.length === 0) {
-            statusMsg.textContent = '⚠️ No data recorded.';
+            statusMsg.textContent = '!!! No data recorded.';
             recorder = null;
             recordChunks = [];
             return;
@@ -791,7 +1116,7 @@ function finalizeRecording(quality) {
         const rawBlob = new Blob(recordChunks, { type: recorder ? recorder.mimeType : 'video/webm' });
         const durationMs = state.duration * 1000;
         if (typeof ysFixWebmDuration === 'function') {
-            statusMsg.textContent = '⏳ Fixing video duration...';
+            statusMsg.textContent = '... Fixing video duration...';
             ysFixWebmDuration(rawBlob, durationMs, function(fixedBlob) {
                 const url = URL.createObjectURL(fixedBlob);
                 const a = document.createElement('a');
@@ -801,10 +1126,9 @@ function finalizeRecording(quality) {
                 a.click();
                 document.body.removeChild(a);
                 setTimeout(() => URL.revokeObjectURL(url), 5000);
-                statusMsg.textContent = `✅ Video with audio saved as ${base}_${quality}.webm`;
+                statusMsg.textContent = `Video with audio saved as ${base}_${quality}.webm`;
             });
         } else {
-            // fallback
             const url = URL.createObjectURL(rawBlob);
             const a = document.createElement('a');
             a.href = url;
@@ -813,14 +1137,13 @@ function finalizeRecording(quality) {
             a.click();
             document.body.removeChild(a);
             setTimeout(() => URL.revokeObjectURL(url), 5000);
-            statusMsg.textContent = `✅ Video saved (duration may not be indexed) as ${base}_${quality}.webm`;
+            statusMsg.textContent = `Video saved (duration may not be indexed) as ${base}_${quality}.webm`;
         }
         recorder = null;
         recordChunks = [];
         return;
     }
 
-    // Speed > 1: video only
     if (recordChunks.length === 0) {
         statusMsg.textContent = '⚠️ No video data recorded.';
         recorder = null;
@@ -832,7 +1155,7 @@ function finalizeRecording(quality) {
     const durationMs = state.duration * 1000;
 
     if (typeof ysFixWebmDuration === 'function') {
-        statusMsg.textContent = '⏳ Fixing video duration...';
+        statusMsg.textContent = 'Fixing video duration...';
         ysFixWebmDuration(rawVideoBlob, durationMs, function(fixedVideoBlob) {
             const videoUrl = URL.createObjectURL(fixedVideoBlob);
             const vA = document.createElement('a');
@@ -858,7 +1181,7 @@ function finalizeRecording(quality) {
                 setTimeout(() => URL.revokeObjectURL(videoUrl), 5000);
             }
 
-            statusMsg.textContent = `✅ Fast render: video & original audio downloaded separately. Use FFmpeg to merge (see Settings).`;
+            statusMsg.textContent = `Fast render: video & original audio downloaded separately. Use FFmpeg to merge (see Settings).`;
             mergeNote.style.display = 'block';
             updateMergeNote();
         });
@@ -911,9 +1234,8 @@ recordBtn.addEventListener('click', async () => {
     playBtn.disabled = true;
     progressBar.disabled = true;
     recordBtn.textContent = '⏺ Recording...';
-    statusMsg.textContent = '⏳ Starting capture...';
+    statusMsg.textContent = 'Starting capture...';
 
-    // Reset to beginning to avoid desync
     state.audio.currentTime = 0;
     virtualTime = 0;
     lastRealTime = 0;
@@ -936,7 +1258,7 @@ recordBtn.addEventListener('click', async () => {
 
     state.audio.volume = 0;
     state.audio.playbackRate = speed;
-    state.audio.currentTime = 0; // already set but ensure it
+    state.audio.currentTime = 0;
     state.isPlaying = true;
     playBtn.textContent = '⏸ Pause';
 
@@ -990,7 +1312,7 @@ recordBtn.addEventListener('click', async () => {
     }
 
     const speedMsg = speed === 1 ? 'real‑time' : `${speed}× (fast)`;
-    statusMsg.textContent = `⚡ Recording at ${speedMsg}...`;
+    statusMsg.textContent = `Recording at ${speedMsg}...`;
 
     let lastFrameTime = 0;
     let isCapturing = false;
@@ -1018,10 +1340,9 @@ recordBtn.addEventListener('click', async () => {
     requestAnimationFrame(captureFrame);
 });
 
-//  PLAYBACK CONTROLS
 playBtn.addEventListener('click', () => {
     if (!state.audio || !state.loaded) {
-        statusMsg.textContent = '⏳ load TTML + audio first';
+        statusMsg.textContent = 'load TTML + audio first';
         return;
     }
     if (state.isPlaying) {
@@ -1068,7 +1389,6 @@ progressBar.addEventListener('change', (e) => {
     renderLyrics(t);
 });
 
-//  FILE HANDLING
 function handleTTMLFile(file) {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -1077,7 +1397,7 @@ function handleTTMLFile(file) {
             state.lines = lines;
             $('ttmlName').textContent = file.name;
             ttmlDrop.classList.add('has-file');
-            statusMsg.textContent = '✅ TTML loaded: ' + file.name;
+            statusMsg.textContent = 'TTML loaded: ' + file.name;
             checkReady();
         } catch (err) {
             statusMsg.textContent = '❌ TTML error: ' + err.message;
@@ -1087,7 +1407,6 @@ function handleTTMLFile(file) {
 }
 
 function handleAudioFile(file) {
-    // Stop any currently playing audio
     if (state.audio) {
         state.audio.pause();
         state.audio.currentTime = 0;
@@ -1097,10 +1416,8 @@ function handleAudioFile(file) {
             cancelAnimationFrame(state.animationId);
             state.animationId = null;
         }
-        // Remove old event listeners to avoid duplicates
         state.audio.onended = null;
     }
-    // Reset virtual time
     virtualTime = 0;
     lastRealTime = 0;
 
@@ -1120,7 +1437,7 @@ function handleAudioFile(file) {
         progressBar.value = 0;
         $('audioName').textContent = file.name;
         audioDrop.classList.add('has-file');
-        statusMsg.textContent = '✅ audio loaded: ' + file.name;
+        statusMsg.textContent = 'audio loaded: ' + file.name;
         checkReady();
         renderLyrics(0);
         updateMergeNote();
@@ -1132,7 +1449,7 @@ function handleAudioFile(file) {
 
 function checkReady() {
     if (state.lines.length && state.audio && state.loaded) {
-        statusMsg.textContent = '✅ ready — press Play';
+        statusMsg.textContent = 'ready — press Play';
         playBtn.disabled = false;
         bratBox.classList.add('has-content');
         renderLyrics(0);
@@ -1166,7 +1483,6 @@ setupDropZone(audioDrop, audioInput, handleAudioFile);
     });
 });
 
-//  UTILITIES
 function formatTime(sec) {
     if (!sec || sec < 0) return '0:00';
     const m = Math.floor(sec / 60);
@@ -1174,7 +1490,6 @@ function formatTime(sec) {
     return m + ':' + String(s).padStart(2, '0');
 }
 
-//  INIT
 playBtn.disabled = true;
 statusMsg.textContent = 'drop TTML + audio to start';
 textDisplay.innerHTML = '<span style="color:#666;font-size:28px;filter:none;">drop files</span>';
